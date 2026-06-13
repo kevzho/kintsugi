@@ -18,6 +18,17 @@ export interface Finding {
   category: "data_integrity" | "modeling_warning" | string;
 }
 
+export interface FixCode {
+  type: "python" | "pandas" | "sklearn" | "sql" | "plaintext" | string;
+  code: string;
+}
+
+export interface Recommendation {
+  title: string;
+  why: string;
+  fix: FixCode | null;
+}
+
 export interface ColumnProfile {
   dtype_inferred: string;
   n_unique: number;
@@ -69,7 +80,7 @@ export interface Report {
   fingerprint: string;
   severity_counts: Record<string, number>;
   exec_summary: string;
-  recommendations: string[];
+  recommendations: Recommendation[];
   ai_available: boolean;
   generated_at: string;
 }

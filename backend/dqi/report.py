@@ -36,6 +36,29 @@ class Severity(str, Enum):
 
 
 @dataclass
+class FixCode:
+    """Structured code fix payload for frontend rendering."""
+    type: str = "python"
+    code: str = ""
+
+
+@dataclass
+class Recommendation:
+    """A recommended action with optional structured fix code."""
+    title: str
+    why: str = ""
+    fix: Optional[FixCode] = None
+
+    def to_text(self) -> str:
+        parts = [self.title]
+        if self.why:
+            parts.append(self.why)
+        if self.fix and self.fix.code:
+            parts.append(self.fix.code)
+        return " — ".join(parts)
+
+
+@dataclass
 class Finding:
     """A single data-quality issue discovered by an engine."""
     engine: str                          # e.g. "leakage"
@@ -90,7 +113,7 @@ class Report:
     severity_counts: dict[str, int] = field(default_factory=dict)
     modeling_warnings: list[Finding] = field(default_factory=list)
     exec_summary: str = ""               # filled by AI layer
-    recommendations: list[str] = field(default_factory=list)  # AI-enriched, ordered
+    recommendations: list[Recommendation] = field(default_factory=list)  # AI-enriched, ordered
     ai_available: bool = True            # False if Groq was unavailable (graceful degradation)
     generated_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 

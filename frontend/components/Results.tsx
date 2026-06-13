@@ -20,6 +20,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScoreGauge } from "./ScoreGauge";
 import { FindingCard } from "./FindingCard";
+import { FixCodeBlock } from "./FixCodeBlock";
 import {
   CorrelationHeatmap,
   ImbalanceChart,
@@ -27,6 +28,28 @@ import {
   OutliersChart,
 } from "./Charts";
 import { downloadMarkdown } from "@/lib/markdown";
+
+function normalizeRecommendation(rec: unknown) {
+  if (typeof rec === "string") {
+    return { title: rec, why: "", fix: null };
+  }
+  if (rec && typeof rec === "object") {
+    const value = rec as {
+      title?: unknown;
+      why?: unknown;
+      fix?: unknown;
+    };
+    const fix = value.fix && typeof value.fix === "object"
+      ? value.fix as { type?: string; code?: string }
+      : null;
+    return {
+      title: String(value.title ?? "Recommended action"),
+      why: String(value.why ?? ""),
+      fix: fix?.code ? { type: fix.type ?? "plaintext", code: fix.code } : null,
+    };
+  }
+  return { title: "Recommended action", why: "", fix: null };
+}
 
 function StatTile({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
@@ -182,14 +205,21 @@ export function Results({ report }: { report: Report }) {
             <div>
               <p className="mb-2 text-sm font-semibold text-foreground">Next steps</p>
               <ol className="space-y-2">
-                {report.recommendations.map((rec, i) => (
+                {report.recommendations.map((item, i) => {
+                  const rec = normalizeRecommendation(item);
+                  return (
                   <li key={i} className="flex gap-2 text-sm text-foreground/90">
                     <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border bg-background text-[11px] font-bold text-foreground">
                       {i + 1}
                     </span>
-                    <span>{rec}</span>
+                    <div className="min-w-0 flex-1 space-y-2">
+                      <p className="font-medium text-foreground">{rec.title}</p>
+                      {rec.why && <p className="text-muted-foreground">{rec.why}</p>}
+                      {rec.fix && <FixCodeBlock fix={rec.fix} />}
+                    </div>
                   </li>
-                ))}
+                  );
+                })}
               </ol>
             </div>
           )}

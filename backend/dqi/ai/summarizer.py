@@ -9,7 +9,7 @@ import re
 from typing import TYPE_CHECKING
 
 from .. import config
-from ..report import Severity
+from ..report import FixCode, Recommendation, Severity
 from . import groq_client, prompts
 
 if TYPE_CHECKING:
@@ -72,6 +72,10 @@ def build_context(report: "Report") -> dict:
                 "column": f.column,
                 "title": f.title,
                 "impact": f.impact,
+                "deterministic_fix": {
+                    "type": "python",
+                    "code": f.fix_snippet,
+                } if f.fix_snippet else None,
                 "metrics": _trim_metrics(f.metrics),
             }
             for f in top
@@ -93,7 +97,62 @@ def _extract_json(text: str) -> dict | None:
     return None
 
 
-def _deterministic_summary(report: "Report") -> tuple[str, list[str]]:
+def _recommendation_from_finding(f) -> Recommendation:
+    snippet = (f.fix_snippet or "").strip()
+    return Recommendation(
+        title=f.title,
+        why=f.impact,
+        fix=FixCode(type="python", code=snippet) if snippet else None,
+    )
+
+
+def _coerce_recommendation(item) -> Recommendation | None:
+    if isinstance(item, Recommendation):
+        return item
+    if isinstance(item, dict):
+        title = str(item.get("title") or item.get("action") or item.get("what") or "").strip()
+        why = str(item.get("why") or item.get("impact") or item.get("reason") or "").strip()
+        fix_obj = item.get("fix")
+        fix = None
+        if isinstance(fix_obj, dict):
+            code = str(fix_obj.get("code") or "").strip()
+            lang = str(fix_obj.get("type") or fix_obj.get("language") or "python").strip() or "python"
+            if code:
+                fix = FixCode(type=lang, code=code)
+        elif isinstance(fix_obj, str) and fix_obj.strip():
+            fix = FixCode(type="python", code=fix_obj.strip().strip("`"))
+        if not title and why:
+            title = why
+            why = ""
+        return Recommendation(title=title, why=why, fix=fix) if title else None
+    if isinstance(item, str):
+        raw = item.strip()
+        if not raw:
+            return None
+        parts = [p.strip() for p in raw.split(" — ")]
+        title = parts[0]
+        why = parts[1] if len(parts) > 1 else ""
+        fix = None
+        if len(parts) > 2:
+            code = parts[2].strip().strip("`")
+            if code:
+                fix = FixCode(type="python", code=code)
+        return Recommendation(title=title, why=why, fix=fix)
+    return None
+
+
+def _coerce_recommendations(items) -> list[Recommendation]:
+    recs: list[Recommendation] = []
+    for item in items or []:
+        rec = _coerce_recommendation(item)
+        if rec:
+            recs.append(rec)
+        if len(recs) >= 5:
+            break
+    return recs
+
+
+def _deterministic_summary(report: "Report") -> tuple[str, list[Recommendation]]:
     findings = sorted(report.findings, key=lambda f: f.severity.rank)
     counts = report.severity_counts
     n_crit = counts.get("critical", 0)
@@ -125,26 +184,25 @@ def _deterministic_summary(report: "Report") -> tuple[str, list[str]]:
         f"the top concern is {headline}. {purpose_sentence}"
     )
 
-    recs: list[str] = []
+    recs: list[Recommendation] = []
     for f in findings:
         if f.severity in (Severity.INFO,):
             continue
-        snippet = (f.fix_snippet or "").splitlines()
-        snippet = next((ln for ln in snippet if ln and not ln.strip().startswith("#")), "")
-        what = f.title
-        why = f.impact
-        rec = f"{what} — {why}"
-        if snippet:
-            rec += f" — `{snippet.strip()}`"
-        recs.append(rec)
+        recs.append(_recommendation_from_finding(f))
         if len(recs) >= 5:
             break
     if not recs:
-        recs = ["No high-impact issues found — the dataset looks ready for a baseline model."]
+        recs = [
+            Recommendation(
+                title="No high-impact issues found",
+                why="The dataset looks ready for a baseline model.",
+                fix=None,
+            )
+        ]
     return summary, recs
 
 
-def summarize(report: "Report") -> tuple[str, list[str], bool]:
+def summarize(report: "Report") -> tuple[str, list[Recommendation], bool]:
     context = build_context(report)
     user = prompts.build_user_prompt(context)
     raw = groq_client.chat(prompts.SYSTEM, user)
@@ -152,8 +210,7 @@ def summarize(report: "Report") -> tuple[str, list[str], bool]:
     if raw:
         parsed = _extract_json(raw)
         if parsed and isinstance(parsed.get("exec_summary"), str):
-            recs = parsed.get("recommendations") or []
-            recs = [str(r) for r in recs][:5]
+            recs = _coerce_recommendations(parsed.get("recommendations") or [])
             if not recs:
                 _, recs = _deterministic_summary(report)
             return parsed["exec_summary"].strip(), recs, True

@@ -22,7 +22,16 @@ export function reportToMarkdown(r: Report): string {
   if (r.recommendations?.length) {
     lines.push(`## Recommended Actions`);
     lines.push("");
-    r.recommendations.forEach((rec, i) => lines.push(`${i + 1}. ${rec}`));
+    r.recommendations.forEach((rec, i) => {
+      lines.push(`${i + 1}. ${rec.title}`);
+      if (rec.why) lines.push(`   ${rec.why}`);
+      if (rec.fix?.code) {
+        lines.push("");
+        lines.push(`\`\`\`${rec.fix.type || "plaintext"}`);
+        lines.push(rec.fix.code);
+        lines.push("```");
+      }
+    });
     lines.push("");
   }
 
