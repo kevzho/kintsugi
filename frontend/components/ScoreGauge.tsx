@@ -3,8 +3,8 @@
 import { gradeColor } from "@/lib/types";
 
 export function ScoreGauge({ score, grade }: { score: number; grade: string }) {
-  const radius = 80;
-  const stroke = 14;
+  const radius = 72;
+  const stroke = 10;
   const normalized = radius - stroke / 2;
   const circumference = Math.PI * normalized; // half circle
   const clamped = Math.max(0, Math.min(100, score));
@@ -12,7 +12,7 @@ export function ScoreGauge({ score, grade }: { score: number; grade: string }) {
 
   return (
     <div className="relative flex flex-col items-center">
-      <svg width={radius * 2} height={radius + 20} viewBox={`0 0 ${radius * 2} ${radius + 20}`}>
+      <svg width={radius * 2} height={radius + 18} viewBox={`0 0 ${radius * 2} ${radius + 18}`}>
         <path
           d={`M ${stroke / 2} ${radius} A ${normalized} ${normalized} 0 0 1 ${radius * 2 - stroke / 2} ${radius}`}
           fill="none"
@@ -32,11 +32,11 @@ export function ScoreGauge({ score, grade }: { score: number; grade: string }) {
         />
       </svg>
       <div className="absolute inset-x-0 top-7 flex flex-col items-center">
-        <div className="text-5xl font-bold tabular-nums text-foreground">
+        <div className="text-3xl font-semibold tabular-nums text-foreground">
           {Math.round(score)}
-          <span className="text-xl font-medium text-muted-foreground">/100</span>
+          <span className="text-sm font-medium text-muted-foreground">/100</span>
         </div>
-        <div className={`mt-1 text-2xl font-extrabold ${gradeColor(grade)}`}>Grade {grade}</div>
+        <div className={`mt-1 text-base font-semibold ${gradeColor(grade)}`}>Grade {grade}</div>
       </div>
     </div>
   );

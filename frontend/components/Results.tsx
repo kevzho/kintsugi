@@ -117,7 +117,7 @@ export function Results({ report }: { report: Report }) {
           </CardHeader>
           <CardContent className="flex flex-col items-center pb-6">
             <ScoreGauge score={report.overall_score} grade={report.overall_grade} />
-            <p className="mt-2 text-center text-sm text-muted-foreground">{report.verdict}</p>
+            <p className="mt-1 max-w-44 text-center text-xs leading-5 text-muted-foreground">{report.verdict}</p>
             {report.sampled && (
               <p className="mt-2 text-center text-xs text-muted-foreground">
                 Based on a {report.n_rows_analyzed.toLocaleString()}-row sample
