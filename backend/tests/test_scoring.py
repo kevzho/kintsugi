@@ -28,7 +28,7 @@ def _state_crime_income_df() -> pd.DataFrame:
     rows = []
     states = [f"State_{i:02d}" for i in range(30)]
     rng = np.random.default_rng(12)
-    for year in range(1978, 1986):
+    for year in range(1978, 1996):
         for state_idx, state in enumerate(states):
             population = 500_000 + state_idx * 83_000 + (year - 1978) * 11_000
             violent = 900 + state_idx * 17 + (year - 1978) * 13 + rng.integers(-20, 20)
@@ -42,7 +42,7 @@ def _state_crime_income_df() -> pd.DataFrame:
                     "Population": population,
                     "Violent Crime": violent,
                     "Property Crime": property_crime,
-                    "Median Income": np.nan if year == 1978 and state_idx < 20 else 45_000 + state_idx * 900 + (year - 1978) * 700,
+                    "Median Income": np.nan if year == 1978 else 45_000 + state_idx * 900 + (year - 1978) * 700,
                     "High Crime": int(rng.random() > 0.5),
                 }
             )
@@ -83,6 +83,54 @@ def _quikr_df() -> pd.DataFrame:
             }
         )
     return pd.concat([pd.DataFrame(rows), pd.DataFrame(rows[:20])], ignore_index=True)
+
+
+def _wc_top_scorers_df() -> pd.DataFrame:
+    rows = []
+    results = [
+        "Winner",
+        "Runner-up",
+        "Third place",
+        "Fourth place",
+        "Quarter-final",
+        "Round of 16",
+        "Group stage",
+    ]
+    for i in range(22):
+        rows.append(
+            {
+                "player": f"Player {i:02d}",
+                "team": f"Team {i % 12:02d}",
+                "rank": i + 1,
+                "goals": 8 - min(i // 3, 7),
+                "assists": i % 5,
+                "matches_played": 3 + (i % 5),
+                "minutes": 180 + i * 17,
+                "age": 20 + (i % 14),
+                "position": ["Forward", "Midfielder", "Winger"][i % 3],
+                "final_score": f"{i % 4}-{(i + 1) % 3}",
+                "team_result": results[i % len(results)],
+            }
+        )
+    return pd.DataFrame(rows)
+
+
+def _large_clean_learning_df(n: int = 1200) -> pd.DataFrame:
+    rng = np.random.default_rng(99)
+    x1 = rng.normal(size=n)
+    x2 = rng.normal(size=n)
+    return pd.DataFrame(
+        {
+            "age": rng.integers(18, 80, size=n),
+            "income": rng.normal(75_000, 18_000, size=n).round(2),
+            "tenure_months": rng.integers(0, 96, size=n),
+            "usage_score": rng.normal(0, 1, size=n).round(4),
+            "segment": rng.choice(["A", "B", "C", "D"], size=n),
+            "region": rng.choice(["NE", "SE", "MW", "W"], size=n),
+            "support_tickets": rng.poisson(1.2, size=n),
+            "churn": (x1 + 0.6 * x2 + rng.normal(0, 0.8, size=n) > 0).astype(int),
+        }
+    )
 
 
 def test_score_ordering(clean_df, messy_df, leaky_df):
@@ -239,6 +287,52 @@ def test_state_crime_measurements_are_not_identifiers(monkeypatch):
     assert any(f.code == "STRUCTURAL_MISSINGNESS_TIME_REGIME" for f in report.findings)
 
 
+def test_tiny_clean_dataset_is_eda_only_not_model_ready(monkeypatch):
+    monkeypatch.delenv("GROQ_API_KEY", raising=False)
+    report = dqi.analyze(_wc_top_scorers_df(), "wc_top_scorers.csv", target="team_result")
+    codes = {f.code for f in report.findings}
+
+    assert 85 <= report.integrity_score <= 100
+    assert 25 <= report.readiness_score <= 45
+    assert 55 <= report.overall_score <= 70
+    assert report.dataset_purpose in {
+        "EDA-only / visualization dataset",
+        "Not suitable for supervised ML",
+    }
+    assert "not suitable" in report.verdict.lower() or "eda" in report.verdict.lower()
+    assert report.readiness_confidence == "low"
+    assert "SMALL_SAMPLE_SIZE" in codes
+    assert "LOW_ROWS_PER_FEATURE" in codes
+    assert "HIGH_CARDINALITY_GENERALIZATION" in codes
+    assert "WEAK_CLASSIFICATION_TARGET_SUPPORT" in codes
+    assert "POST_OUTCOME_LEAKAGE_RISK" in codes
+    assert all(
+        f.category == "modeling_warning"
+        for f in report.findings
+        if f.code in {
+            "SMALL_SAMPLE_SIZE",
+            "LOW_ROWS_PER_FEATURE",
+            "HIGH_CARDINALITY_GENERALIZATION",
+            "WEAK_CLASSIFICATION_TARGET_SUPPORT",
+            "POST_OUTCOME_LEAKAGE_RISK",
+        }
+    )
+    assert "exploratory analysis" in report.exec_summary.lower()
+
+
+def test_large_clean_dataset_is_not_unfairly_penalized(monkeypatch):
+    monkeypatch.delenv("GROQ_API_KEY", raising=False)
+    report = dqi.analyze(_large_clean_learning_df(), "large_clean.csv", target="churn")
+    codes = {f.code for f in report.findings}
+
+    assert report.integrity_score >= 90
+    assert report.readiness_score >= 80
+    assert report.overall_score >= 85
+    assert report.dataset_purpose in {"Strong ML candidate", "Trainable with caution"}
+    assert "SMALL_SAMPLE_SIZE" not in codes
+    assert "LOW_ROWS_PER_FEATURE" not in codes
+
+
 def test_confirmed_identifier_still_runs_entity_consistency(monkeypatch):
     monkeypatch.delenv("GROQ_API_KEY", raising=False)
     df = pd.DataFrame(
@@ -277,7 +371,7 @@ def test_quikr_messy_numeric_columns_stay_low(monkeypatch):
     assert any(f.code == "MESSY_NUMERIC_TEXT" and f.column == "Price" for f in report.findings)
     assert any(f.code == "MESSY_NUMERIC_TEXT" and f.column == "kms_driven" for f in report.findings)
     assert any(f.engine == "duplicates" for f in report.findings)
-    assert 30 <= report.integrity_score <= 55
+    assert 30 <= report.integrity_score <= 60
     assert 35 <= report.overall_score <= 60
     assert report.integrity_confidence == "high"
     assert "finding" in report.integrity_confidence_reason

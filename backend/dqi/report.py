@@ -83,6 +83,7 @@ class Report:
     overall_confidence: str
     overall_confidence_reason: str
     dataset_type: str
+    dataset_purpose: str
     findings: list[Finding]
     schema: dict[str, Any]               # column profiles
     fingerprint: str                     # cache key

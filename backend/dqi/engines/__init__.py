@@ -7,12 +7,14 @@ from .feature_quality import FeatureQualityEngine
 from .imbalance import ImbalanceEngine
 from .leakage import LeakageEngine
 from .missingness import MissingnessEngine
+from .model_readiness import ModelReadinessEngine
 from .outliers import OutliersEngine
 
 ALL_ENGINES = [
     MissingnessEngine(),
     DuplicatesEngine(),
     ImbalanceEngine(),
+    ModelReadinessEngine(),
     OutliersEngine(),
     LeakageEngine(),
     FeatureQualityEngine(),
@@ -24,6 +26,7 @@ __all__ = [
     "MissingnessEngine",
     "DuplicatesEngine",
     "ImbalanceEngine",
+    "ModelReadinessEngine",
     "OutliersEngine",
     "LeakageEngine",
     "FeatureQualityEngine",

@@ -32,11 +32,11 @@ export function ScoreGauge({ score, grade }: { score: number; grade: string }) {
         />
       </svg>
       <div className="absolute inset-x-0 top-7 flex flex-col items-center">
-        <div className="text-3xl font-semibold tabular-nums text-foreground">
+        <div className="text-2xl font-semibold tabular-nums text-foreground">
           {Math.round(score)}
-          <span className="text-sm font-medium text-muted-foreground">/100</span>
+          <span className="text-xs font-medium text-muted-foreground">/100</span>
         </div>
-        <div className={`mt-1 text-base font-semibold ${gradeColor(grade)}`}>Grade {grade}</div>
+        <div className={`mt-1 text-sm font-semibold ${gradeColor(grade)}`}>Grade {grade}</div>
       </div>
     </div>
   );

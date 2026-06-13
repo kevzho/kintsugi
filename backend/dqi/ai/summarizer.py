@@ -49,6 +49,7 @@ def build_context(report: "Report") -> dict:
         "overall_score": report.overall_score,
         "overall_grade": report.overall_grade,
         "verdict": report.verdict,
+        "dataset_purpose": report.dataset_purpose,
         "score_confidence": {
             "integrity": report.integrity_confidence,
             "readiness": report.readiness_confidence,
@@ -98,21 +99,30 @@ def _deterministic_summary(report: "Report") -> tuple[str, list[str]]:
     n_crit = counts.get("critical", 0)
     n_high = counts.get("high", 0)
 
-    fit = "fit to train on"
-    if n_crit:
-        fit = "NOT fit to train on until the critical issues are resolved"
-    elif n_high:
-        fit = "trainable, but address the high-severity issues first"
-
     lead = findings[0] if findings else None
     headline = lead.title if lead else "no material issues detected"
+    if report.dataset_purpose in {"Not suitable for supervised ML", "EDA-only / visualization dataset"}:
+        purpose_sentence = (
+            "It is structurally clean enough to inspect, but not suitable for reliable "
+            "supervised machine learning; use it for exploratory analysis, visualization, "
+            "historical analysis, or a toy demo unless more data is added."
+            if report.integrity_score >= 80
+            else "Its current purpose is limited by both quality and readiness concerns."
+        )
+    elif report.dataset_purpose == "Toy ML / demo only":
+        purpose_sentence = "It can support a toy/demo model, but reliable validation needs more data."
+    elif report.dataset_purpose == "Trainable with caution":
+        purpose_sentence = "It may support baseline modeling, but validation should be treated cautiously."
+    else:
+        purpose_sentence = "It looks like a strong candidate for baseline modeling."
     summary = (
         f"'{report.dataset_name}' has integrity {report.integrity_score}/100 "
         f"({report.integrity_grade}, {report.integrity_confidence} confidence) and model readiness "
         f"{report.readiness_score}/100 ({report.readiness_grade}, {report.readiness_confidence} confidence) "
         f"across {report.n_rows} rows and {report.n_cols} columns. "
-        f"Overall verdict: {report.verdict}. Found {n_crit} critical and {n_high} high-severity issues; "
-        f"the top concern is {headline}. This dataset is {fit}."
+        f"Purpose: {report.dataset_purpose}. Overall verdict: {report.verdict}. "
+        f"Found {n_crit} critical and {n_high} high-severity issues; "
+        f"the top concern is {headline}. {purpose_sentence}"
     )
 
     recs: list[str] = []

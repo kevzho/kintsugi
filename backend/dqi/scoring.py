@@ -27,6 +27,7 @@ class ScoreResult:
     readiness_confidence_reason: str
     overall_confidence: str
     overall_confidence_reason: str
+    dataset_purpose: str
     severity_counts: dict[str, int]
 
 
@@ -35,7 +36,7 @@ READINESS_WEIGHTS = {
     Severity.HIGH: 12.0,
     Severity.MEDIUM: 5.0,
     Severity.LOW: 2.0,
-    Severity.INFO: 0.5,
+    Severity.INFO: 0.0,
 }
 
 READINESS_ENGINE_CAPS = {
@@ -44,6 +45,7 @@ READINESS_ENGINE_CAPS = {
     "feature_quality": 7.0,
     "feature_quality:MESSY_NUMERIC_TEXT": 24.0,
     "imbalance": 18.0,
+    "model_readiness": 60.0,
 }
 
 INTEGRITY_ENGINE_CAPS = {
@@ -90,6 +92,8 @@ def _integrity_weight(f: Finding) -> float:
 
 
 def _readiness_weight(f: Finding) -> float:
+    if "readiness_penalty" in f.metrics:
+        return float(f.metrics["readiness_penalty"])
     weight = READINESS_WEIGHTS.get(f.severity, 0.0)
     if f.engine == "outliers" and f.metrics.get("modeling_warning"):
         weight = min(weight, 5.0)
@@ -100,16 +104,62 @@ def _readiness_weight(f: Finding) -> float:
     return weight
 
 
-def _verdict(integrity: float, readiness: float, overall: float, findings: list[Finding]) -> str:
+def _dataset_purpose(findings: list[Finding], readiness: float) -> str:
+    labels = [
+        str(f.metrics.get("dataset_purpose"))
+        for f in findings
+        if f.metrics.get("dataset_purpose")
+    ]
+    caps = [
+        str(f.metrics.get("dataset_purpose_cap"))
+        for f in findings
+        if f.metrics.get("dataset_purpose_cap")
+    ]
+    ordered = [
+        "Not suitable for supervised ML",
+        "EDA-only / visualization dataset",
+        "Toy ML / demo only",
+        "Trainable with caution",
+        "Strong ML candidate",
+    ]
+    candidates = set(labels + caps)
+    for label in ordered:
+        if label in candidates:
+            return label
+    if readiness >= 85:
+        return "Strong ML candidate"
+    if readiness >= 70:
+        return "Trainable with caution"
+    if readiness >= 50:
+        return "Toy ML / demo only"
+    return "EDA-only / visualization dataset"
+
+
+def _verdict(integrity: float, readiness: float, overall: float, findings: list[Finding], dataset_purpose: str) -> str:
     if any(f.code.startswith("TARGET_LEAKAGE") and f.severity == Severity.CRITICAL for f in findings):
         return "Do not train until leakage is resolved"
     if integrity < 60:
         return "Fix data integrity before modeling"
+    if dataset_purpose == "Not suitable for supervised ML":
+        if integrity >= 80:
+            return "Clean dataset, but not suitable for reliable supervised ML. Best used for EDA, visualization, and historical analysis."
+        return "Not suitable for supervised ML"
+    if dataset_purpose == "EDA-only / visualization dataset":
+        return "EDA-only / visualization dataset"
+    if dataset_purpose == "Toy ML / demo only":
+        return "Toy ML / demo only"
+    if dataset_purpose == "Trainable with caution":
+        return "Trainable with caution"
     if overall >= 85 and readiness >= 75:
         return "Trainable with warnings" if readiness < 90 else "Ready for baseline modeling"
     if readiness < 70:
         return "Structurally usable, but modeling risk is high"
     return "Review before modeling"
+
+
+def _cap_confidence(level: str, cap: str) -> str:
+    order = {"low": 0, "medium": 1, "high": 2}
+    return level if order[level] <= order[cap] else cap
 
 
 def _confidence(
@@ -133,6 +183,16 @@ def _confidence(
 
     if sampled:
         level = "medium" if level == "high" else level
+
+    if score_kind in ("model-readiness", "overall"):
+        if n_rows < 50:
+            level = _cap_confidence(level, "low")
+        elif n_rows < 200:
+            level = _cap_confidence(level, "medium")
+        if any(f.code == "WEAK_CLASSIFICATION_TARGET_SUPPORT" for f in all_findings):
+            level = _cap_confidence(level, "low")
+        if any(f.code == "POST_OUTCOME_LEAKAGE_RISK" for f in all_findings):
+            level = _cap_confidence(level, "medium")
 
     if critical:
         reason = f"{len(critical)} critical finding{'s' if len(critical) != 1 else ''} with direct evidence."
@@ -159,6 +219,8 @@ def score_report(findings: list[Finding], *, n_rows: int = 0, sampled: bool = Fa
     for f in findings:
         if f.engine == "outliers":
             f.category = "modeling_warning"
+        if f.code == "HIGH_CARDINALITY_CATEGORICAL":
+            f.category = "modeling_warning"
 
         integrity_cap = INTEGRITY_ENGINE_CAPS.get(f.engine, config.CATEGORY_CAP)
         readiness_key = f"{f.engine}:{f.code}" if f.code == "MESSY_NUMERIC_TEXT" else f.engine
@@ -182,6 +244,14 @@ def score_report(findings: list[Finding], *, n_rows: int = 0, sampled: bool = Fa
 
     integrity_score = round(max(0.0, min(100.0, 100.0 - sum(integrity_by_engine.values()))), 1)
     readiness_score = round(max(0.0, min(100.0, 100.0 - sum(readiness_by_engine.values()))), 1)
+    readiness_caps = [
+        float(f.metrics["readiness_cap"])
+        for f in findings
+        if "readiness_cap" in f.metrics
+    ]
+    if readiness_caps:
+        readiness_score = round(min(readiness_score, min(readiness_caps)), 1)
+    dataset_purpose = _dataset_purpose(findings, readiness_score)
     overall_score = round(0.6 * integrity_score + 0.4 * readiness_score)
 
     if any(f.code.startswith("TARGET_LEAKAGE") and f.severity == Severity.CRITICAL for f in findings):
@@ -191,6 +261,19 @@ def score_report(findings: list[Finding], *, n_rows: int = 0, sampled: bool = Fa
     missing_high = [f for f in findings if f.code == "MISSING_VALUES" and f.severity in (Severity.HIGH, Severity.CRITICAL)]
     if len(missing_high) >= 3:
         overall_score = min(overall_score, 70)
+    if readiness_score < 40:
+        overall_score = min(overall_score, 65)
+    if dataset_purpose == "EDA-only / visualization dataset":
+        overall_score = min(overall_score, 70)
+    if dataset_purpose == "Not suitable for supervised ML":
+        overall_score = min(overall_score, 60)
+    overall_caps = [
+        float(f.metrics["overall_cap"])
+        for f in findings
+        if "overall_cap" in f.metrics
+    ]
+    if overall_caps:
+        overall_score = min(overall_score, min(overall_caps))
 
     overall_score = float(overall_score)
     integrity_findings = [f for f in findings if f.category != "modeling_warning"]
@@ -215,6 +298,7 @@ def score_report(findings: list[Finding], *, n_rows: int = 0, sampled: bool = Fa
         overall_confidence = "medium"
     else:
         overall_confidence = "medium"
+    overall_confidence = _cap_confidence(overall_confidence, "low" if readiness_confidence == "low" else "medium" if readiness_confidence == "medium" else "high")
     overall_reason = (
         f"Integrity confidence is {integrity_confidence}; readiness confidence is {readiness_confidence}."
     )
@@ -225,12 +309,13 @@ def score_report(findings: list[Finding], *, n_rows: int = 0, sampled: bool = Fa
         readiness_grade=_grade(readiness_score),
         overall_score=overall_score,
         overall_grade=_overall_grade(overall_score),
-        verdict=_verdict(integrity_score, readiness_score, overall_score, findings),
+        verdict=_verdict(integrity_score, readiness_score, overall_score, findings, dataset_purpose),
         integrity_confidence=integrity_confidence,
         integrity_confidence_reason=integrity_reason,
         readiness_confidence=readiness_confidence,
         readiness_confidence_reason=readiness_reason,
         overall_confidence=overall_confidence,
         overall_confidence_reason=overall_reason,
+        dataset_purpose=dataset_purpose,
         severity_counts=severity_counts,
     )

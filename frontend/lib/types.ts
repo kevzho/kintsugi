@@ -62,6 +62,7 @@ export interface Report {
   overall_confidence: string;
   overall_confidence_reason: string;
   dataset_type: string;
+  dataset_purpose: string;
   findings: Finding[];
   modeling_warnings: Finding[];
   schema: Schema;

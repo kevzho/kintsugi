@@ -109,6 +109,7 @@ def analyze(df: pd.DataFrame, dataset_name: str, target: Optional[str] = None) -
         overall_confidence=scores.overall_confidence,
         overall_confidence_reason=scores.overall_confidence_reason,
         dataset_type=dataset_type,
+        dataset_purpose=scores.dataset_purpose,
         findings=findings,
         modeling_warnings=[f for f in findings if f.category == "modeling_warning"],
         schema=schema,

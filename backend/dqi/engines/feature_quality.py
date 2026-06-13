@@ -87,6 +87,7 @@ class FeatureQualityEngine(Engine):
                             f"df[{col!r}] = df[{col!r}].where(df[{col!r}].isin(top), 'other')"
                         ),
                         metrics={"n_unique": prof.get("n_unique", 0)},
+                        category="modeling_warning",
                     )
                 )
 

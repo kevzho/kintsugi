@@ -9,6 +9,7 @@ import {
   Rows3,
   Sparkles,
   Zap,
+  Gauge,
 } from "lucide-react";
 import type { Report, Severity } from "@/lib/types";
 import { SEVERITY_COLORS, SEVERITY_ORDER } from "@/lib/types";
@@ -121,6 +122,7 @@ export function Results({ report }: { report: Report }) {
               <StatTile icon={<Rows3 className="h-4 w-4" />} label="Rows" value={report.n_rows.toLocaleString()} />
               <StatTile icon={<Columns3 className="h-4 w-4" />} label="Columns" value={String(report.n_cols)} />
               <StatTile icon={<Zap className="h-4 w-4" />} label="Dataset" value={report.dataset_type} />
+              <StatTile icon={<Gauge className="h-4 w-4" />} label="Purpose" value={report.dataset_purpose} />
               <StatTile
                 icon={<Info className="h-4 w-4" />}
                 label="Target"
