@@ -42,6 +42,14 @@ def build_context(report: "Report") -> dict:
         },
         "health_score": report.health_score,
         "grade": report.grade,
+        "integrity_score": report.integrity_score,
+        "integrity_grade": report.integrity_grade,
+        "readiness_score": report.readiness_score,
+        "readiness_grade": report.readiness_grade,
+        "overall_score": report.overall_score,
+        "overall_grade": report.overall_grade,
+        "verdict": report.verdict,
+        "dataset_type": report.dataset_type,
         "target_column": report.target_column,
         "schema_summary": {
             "n_numeric": schema.get("n_numeric", 0),
@@ -94,10 +102,11 @@ def _deterministic_summary(report: "Report") -> tuple[str, list[str]]:
     lead = findings[0] if findings else None
     headline = lead.title if lead else "no material issues detected"
     summary = (
-        f"Data Quality IQ graded '{report.dataset_name}' a {report.grade} "
-        f"({report.health_score}/100) across {report.n_rows} rows and {report.n_cols} columns. "
-        f"Found {n_crit} critical and {n_high} high-severity issues; the top concern is {headline}. "
-        f"This dataset is {fit}."
+        f"'{report.dataset_name}' has integrity {report.integrity_score}/100 "
+        f"({report.integrity_grade}) and model readiness {report.readiness_score}/100 "
+        f"({report.readiness_grade}) across {report.n_rows} rows and {report.n_cols} columns. "
+        f"Overall verdict: {report.verdict}. Found {n_crit} critical and {n_high} high-severity issues; "
+        f"the top concern is {headline}. This dataset is {fit}."
     )
 
     recs: list[str] = []

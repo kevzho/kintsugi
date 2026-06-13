@@ -13,6 +13,7 @@ import pandas as pd
 from . import config
 from .ai import summarizer
 from .engines import ALL_ENGINES
+from .meta import classify_columns, classify_dataset
 from .report import Report
 from .schema import infer_schema
 from .scoring import score_report
@@ -71,11 +72,18 @@ def analyze(df: pd.DataFrame, dataset_name: str, target: Optional[str] = None) -
         if target:
             logger.info("auto-detected target column: %s", target)
 
+    column_roles = classify_columns(work, schema, target)
+    for col, role in column_roles.items():
+        if col in schema.get("columns", {}):
+            schema["columns"][col]["column_role"] = role
+    dataset_type = classify_dataset(work, schema, target)
+    schema["dataset_type"] = dataset_type
+
     findings = []
     for engine in ALL_ENGINES:
         findings.extend(engine.safe_run(work, schema, target))
 
-    health_score, grade, severity_counts = score_report(findings)
+    scores = score_report(findings)
     fp = fingerprint(schema, [f.code for f in findings], shape=(n_rows, n_cols))
 
     report = Report(
@@ -85,13 +93,21 @@ def analyze(df: pd.DataFrame, dataset_name: str, target: Optional[str] = None) -
         n_rows_analyzed=len(work),
         sampled=sampled,
         target_column=target,
-        health_score=health_score,
-        grade=grade,
+        health_score=scores.overall_score,
+        grade=scores.overall_grade,
+        integrity_score=scores.integrity_score,
+        integrity_grade=scores.integrity_grade,
+        readiness_score=scores.readiness_score,
+        readiness_grade=scores.readiness_grade,
+        overall_score=scores.overall_score,
+        overall_grade=scores.overall_grade,
+        verdict=scores.verdict,
+        dataset_type=dataset_type,
         findings=findings,
         modeling_warnings=[f for f in findings if f.category == "modeling_warning"],
         schema=schema,
         fingerprint=fp,
-        severity_counts=severity_counts,
+        severity_counts=scores.severity_counts,
     )
 
     try:
@@ -105,7 +121,7 @@ def analyze(df: pd.DataFrame, dataset_name: str, target: Optional[str] = None) -
 
     logger.info(
         "analyzed name=%s rows=%d cols=%d score=%s grade=%s findings=%d",
-        dataset_name, n_rows, n_cols, health_score, grade, len(findings),
+        dataset_name, n_rows, n_cols, scores.overall_score, scores.overall_grade, len(findings),
     )
     return report
 

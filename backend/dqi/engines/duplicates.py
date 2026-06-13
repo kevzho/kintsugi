@@ -24,7 +24,12 @@ class DuplicatesEngine(Engine):
         dup_rate = dup_count / n if n else 0.0
 
         if dup_count > 0:
-            sev = Severity.HIGH if dup_rate >= config.DUP_HIGH_RATE else Severity.MEDIUM
+            if dup_rate >= config.DUP_HIGH_RATE:
+                sev = Severity.HIGH
+            elif dup_rate >= 0.01:
+                sev = Severity.MEDIUM
+            else:
+                sev = Severity.LOW
             pct = round(dup_rate * 100, 1)
             findings.append(
                 Finding(

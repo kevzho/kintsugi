@@ -277,6 +277,7 @@ class LeakageEngine(Engine):
                         column=c,
                         fix_snippet=f"df = df.drop(columns=[{c!r}])",
                         metrics={"cardinality_ratio": p.get("cardinality_ratio", 0)},
+                        category="modeling_warning",
                     )
                 )
 

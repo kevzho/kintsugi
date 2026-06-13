@@ -49,6 +49,42 @@ def _state_crime_income_df() -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def _telco_df(n: int = 800) -> pd.DataFrame:
+    rng = np.random.default_rng(21)
+    total = (rng.uniform(20, 8000, size=n)).round(2).astype(str)
+    blank_idx = rng.choice(n, size=12, replace=False)
+    for i in blank_idx:
+        total[i] = " "
+    return pd.DataFrame(
+        {
+            "customerID": [f"cust-{i:05d}" for i in range(n)],
+            "tenure": rng.integers(0, 72, size=n),
+            "MonthlyCharges": rng.uniform(20, 120, size=n).round(2),
+            "TotalCharges": total,
+            "Contract": rng.choice(["Month-to-month", "One year", "Two year"], size=n),
+            "Churn": rng.choice(["Yes", "No"], size=n),
+        }
+    )
+
+
+def _quikr_df() -> pd.DataFrame:
+    rows = []
+    for i in range(120):
+        price = "Ask For Price" if i % 5 == 0 else f"{1 + i % 8},{50 + i:02d},000"
+        kms = "not available" if i % 7 == 0 else f"{20_000 + i * 750:,} kms"
+        rows.append(
+            {
+                "name": f"Car {i % 20}",
+                "company": ["Maruti", "Hyundai", "Honda"][i % 3],
+                "year": 2000 + (i % 23),
+                "Price": price,
+                "kms_driven": kms,
+                "fuel_type": None if i % 11 == 0 else ["Petrol", "Diesel", "CNG"][i % 3],
+            }
+        )
+    return pd.concat([pd.DataFrame(rows), pd.DataFrame(rows[:20])], ignore_index=True)
+
+
 def test_score_ordering(clean_df, messy_df, leaky_df):
     clean = dqi.analyze(clean_df, "clean", target="churned")
     messy = dqi.analyze(messy_df, "messy", target="converted")
@@ -70,7 +106,10 @@ def test_leaky_scores_low(leaky_df):
 def test_score_bounds_and_grade(clean_df):
     report = dqi.analyze(clean_df, "clean", target="churned")
     assert 0.0 <= report.health_score <= 100.0
-    assert report.grade in {"A", "B", "C", "D", "F"}
+    assert report.grade in {"A", "A-", "B+", "B", "B-", "C", "D", "F"}
+    assert 0.0 <= report.integrity_score <= 100.0
+    assert 0.0 <= report.readiness_score <= 100.0
+    assert report.overall_score == report.health_score
 
 
 def test_works_with_groq_off(messy_df, monkeypatch):
@@ -86,16 +125,19 @@ def test_cyber_heavy_tails_are_modeling_warnings_not_integrity_failures(monkeypa
     report = dqi.analyze(_cyber_heavy_tail_df(), "cyber_attack_dataset_100000.csv", target="attack")
     outliers = [f for f in report.findings if f.engine == "outliers"]
 
-    assert report.health_score >= 90
-    assert report.grade == "A"
+    assert report.dataset_type == "network_logs"
+    assert report.integrity_score >= 90
+    assert 80 <= report.readiness_score <= 90
+    assert 89 <= report.overall_score <= 94
     assert outliers, "heavy-tailed numeric columns should still be visible"
     assert all(f in report.modeling_warnings for f in outliers)
     assert all(f.category == "modeling_warning" for f in outliers)
     assert all(f.severity in {Severity.MEDIUM, Severity.LOW} for f in outliers)
-    assert sum(f.score_penalty for f in outliers) <= 5.0
-    assert all(f.score_penalty <= 2.0 for f in outliers)
+    assert sum(f.integrity_penalty for f in outliers) <= 3.0
     assert any("heavy-tailed" in f.title for f in outliers)
     assert any("Do not blindly remove" in (f.fix_snippet or "") for f in outliers)
+    for col in ("src_bytes", "dst_bytes", "packet_count", "failed_logins", "duration"):
+        assert report.schema["columns"][col]["column_role"] == "measurement"
 
 
 def test_true_integrity_failures_still_score_low(monkeypatch):
@@ -139,15 +181,17 @@ def test_numeric_score_is_independent_of_groq_response(monkeypatch, messy_df):
     assert with_groq.exec_summary == "Groq text only."
     assert with_groq.health_score == no_groq.health_score
     assert with_groq.grade == no_groq.grade
+    assert with_groq.integrity_score == no_groq.integrity_score
+    assert with_groq.readiness_score == no_groq.readiness_score
 
 
 def test_outlier_penalty_cap_even_with_many_heavy_tailed_columns(monkeypatch):
     monkeypatch.delenv("GROQ_API_KEY", raising=False)
     report = dqi.analyze(_cyber_heavy_tail_df(), "many_outliers.csv", target="attack")
-    outlier_penalty = sum(f.score_penalty for f in report.findings if f.engine == "outliers")
+    outlier_penalty = sum(f.integrity_penalty for f in report.findings if f.engine == "outliers")
 
-    assert outlier_penalty <= 5.0
-    assert report.health_score >= 95.0
+    assert outlier_penalty <= 3.0
+    assert report.integrity_score >= 95.0
 
 
 def test_state_crime_measurements_are_not_identifiers(monkeypatch):
@@ -182,7 +226,10 @@ def test_state_crime_measurements_are_not_identifiers(monkeypatch):
 
     assert not critical_id_findings
     assert not id_memorization
-    assert 85 <= report.health_score <= 95
+    assert report.dataset_type == "panel_data"
+    assert 85 <= report.integrity_score <= 95
+    assert 75 <= report.readiness_score <= 85
+    assert 83 <= report.overall_score <= 91
     assert any(f.code == "STRUCTURAL_MISSINGNESS_TIME_REGIME" for f in report.findings)
 
 
@@ -201,3 +248,28 @@ def test_confirmed_identifier_still_runs_entity_consistency(monkeypatch):
 
     assert schema["columns"]["customer_id"]["is_id_like"] is True
     assert any(f.code == "DUPLICATE_ID_LABEL_NOISE" for f in report.findings)
+
+
+def test_telco_totalcharges_blanks_are_not_catastrophic(monkeypatch):
+    monkeypatch.delenv("GROQ_API_KEY", raising=False)
+    report = dqi.analyze(_telco_df(), "WA_Fn-UseC_-Telco-Customer-Churn.csv")
+
+    assert report.dataset_type == "business_tabular"
+    assert report.target_column == "Churn"
+    assert report.schema["columns"]["customerID"]["column_role"] == "identifier"
+    assert report.schema["columns"]["Churn"]["column_role"] == "target"
+    assert any(f.column == "TotalCharges" for f in report.findings)
+    assert report.integrity_score >= 85
+    assert report.overall_score >= 86
+
+
+def test_quikr_messy_numeric_columns_stay_low(monkeypatch):
+    monkeypatch.delenv("GROQ_API_KEY", raising=False)
+    report = dqi.analyze(_quikr_df(), "quikr_car.csv")
+
+    assert report.dataset_type == "ecommerce"
+    assert any(f.code == "MESSY_NUMERIC_TEXT" and f.column == "Price" for f in report.findings)
+    assert any(f.code == "MESSY_NUMERIC_TEXT" and f.column == "kms_driven" for f in report.findings)
+    assert any(f.engine == "duplicates" for f in report.findings)
+    assert 30 <= report.integrity_score <= 55
+    assert 35 <= report.overall_score <= 60

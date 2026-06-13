@@ -48,6 +48,8 @@ class Finding:
     fix_snippet: Optional[str] = None    # copy-pasteable pandas fix
     metrics: dict[str, Any] = field(default_factory=dict)  # numbers for charts / LLM
     score_penalty: float = 0.0           # filled by scoring layer
+    integrity_penalty: float = 0.0       # filled by scoring layer
+    readiness_penalty: float = 0.0       # filled by scoring layer
     category: str = "data_integrity"     # or "modeling_warning"
 
     def to_dict(self) -> dict[str, Any]:
@@ -67,6 +69,14 @@ class Report:
     target_column: Optional[str]
     health_score: float                  # 0-100
     grade: str                           # A-F
+    integrity_score: float
+    integrity_grade: str
+    readiness_score: float
+    readiness_grade: str
+    overall_score: float
+    overall_grade: str
+    verdict: str
+    dataset_type: str
     findings: list[Finding]
     schema: dict[str, Any]               # column profiles
     fingerprint: str                     # cache key

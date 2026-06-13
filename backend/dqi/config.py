@@ -21,7 +21,7 @@ ID_CARDINALITY_RATIO = 0.95
 MEASUREMENT_NAME_PATTERN = (
     r"(count|rate|population|income|gdp|crime|age|density|percent|percentage|"
     r"score|value|amount|price|cost|revenue|bytes|packets?|duration|total|"
-    r"violent|property|assault|burglary|theft|murder|robbery)"
+    r"kms?|kilometers?|miles?|driven|violent|property|assault|burglary|theft|murder|robbery)"
 )
 IDENTIFIER_NAME_PATTERN = (
     r"(^id$|_id$|id_|uuid|guid|\\bkey\\b|account|customer|transaction|"

@@ -112,6 +112,40 @@ class FeatureQualityEngine(Engine):
                     sample = df[col].dropna().head(500)
                     if len(sample) >= 20:
                         as_num = pd.to_numeric(sample, errors="coerce").notna().mean()
+                        cleaned = sample.astype(str).str.replace(r"[^0-9.\-]+", "", regex=True)
+                        cleaned = cleaned.mask(cleaned == "")
+                        as_clean_num = pd.to_numeric(cleaned, errors="coerce").notna().mean()
+                        numericish_name = prof.get("name_kind") == "measurement" or prof.get("column_role") == "measurement"
+                        if numericish_name and as_clean_num >= 0.5 and as_clean_num > as_num + 0.2:
+                            invalid_rate = 1.0 - float(as_clean_num)
+                            findings.append(
+                                Finding(
+                                    engine=self.name,
+                                    code="MESSY_NUMERIC_TEXT",
+                                    severity=Severity.HIGH if invalid_rate >= 0.10 else Severity.MEDIUM,
+                                    title=f"'{col}' contains messy numeric text",
+                                    detail=(
+                                        f"Raw numeric parse rate is {as_num*100:.0f}%, but {as_clean_num*100:.0f}% "
+                                        "parses after removing units, commas, or currency text."
+                                    ),
+                                    impact=(
+                                        "Models cannot compare or scale this column reliably until units and invalid "
+                                        "tokens are cleaned."
+                                    ),
+                                    column=col,
+                                    fix_snippet=(
+                                        f"df[{col!r}] = pd.to_numeric(\n"
+                                        f"    df[{col!r}].astype(str).str.replace(r'[^0-9.\\-]+', '', regex=True),\n"
+                                        f"    errors='coerce'\n"
+                                        f")"
+                                    ),
+                                    metrics={
+                                        "raw_numeric_parse_rate": round(float(as_num), 3),
+                                        "cleaned_numeric_parse_rate": round(float(as_clean_num), 3),
+                                    },
+                                )
+                            )
+                            continue
                         if 0.1 < as_num < 0.9:
                             findings.append(
                                 Finding(

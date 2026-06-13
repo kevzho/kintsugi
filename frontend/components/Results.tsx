@@ -39,30 +39,42 @@ function StatTile({ icon, label, value }: { icon: React.ReactNode; label: string
   );
 }
 
+function ScoreTile({ title, score, grade }: { title: string; score: number; grade: string }) {
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-sm text-muted-foreground">{title}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="flex items-end gap-2">
+          <span className="text-4xl font-semibold tabular-nums">{Math.round(score)}</span>
+          <span className="pb-1 text-sm text-muted-foreground">/100</span>
+          <Badge className="mb-1 ml-auto border-border bg-muted text-foreground">{grade}</Badge>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export function Results({ report }: { report: Report }) {
-  const sorted = [...report.findings].sort(
+  const sortFindings = (items: typeof report.findings) => [...items].sort(
     (a, b) => SEVERITY_ORDER.indexOf(a.severity) - SEVERITY_ORDER.indexOf(b.severity),
   );
+  const integrityIssues = sortFindings(report.findings.filter((f) => f.category !== "modeling_warning" && f.severity !== "info"));
+  const modelingWarnings = sortFindings(report.modeling_warnings.length ? report.modeling_warnings : report.findings.filter((f) => f.category === "modeling_warning"));
+  const infoDiagnostics = sortFindings(report.findings.filter((f) => f.severity === "info" && f.category !== "modeling_warning"));
   const counts = report.severity_counts;
 
   return (
     <div className="space-y-6">
       {/* Score + stats */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        <Card className="lg:col-span-1">
-          <CardHeader>
-            <CardTitle className="text-base text-muted-foreground">Score</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col items-center pb-8">
-            <ScoreGauge score={report.health_score} grade={report.grade} />
-            {report.sampled && (
-              <p className="mt-2 text-center text-xs text-muted-foreground">
-                Based on a {report.n_rows_analyzed.toLocaleString()}-row sample
-              </p>
-            )}
-          </CardContent>
-        </Card>
+      <div className="grid gap-4 lg:grid-cols-3">
+        <ScoreTile title="Data Integrity" score={report.integrity_score} grade={report.integrity_grade} />
+        <ScoreTile title="Model Readiness" score={report.readiness_score} grade={report.readiness_grade} />
+        <ScoreTile title="Overall" score={report.overall_score} grade={report.overall_grade} />
+      </div>
 
+      <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle className="flex flex-col gap-3 text-base text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
@@ -76,8 +88,9 @@ export function Results({ report }: { report: Report }) {
             <div className="grid gap-3 sm:grid-cols-3">
               <StatTile icon={<Rows3 className="h-4 w-4" />} label="Rows" value={report.n_rows.toLocaleString()} />
               <StatTile icon={<Columns3 className="h-4 w-4" />} label="Columns" value={String(report.n_cols)} />
+              <StatTile icon={<Zap className="h-4 w-4" />} label="Dataset" value={report.dataset_type} />
               <StatTile
-                icon={<Zap className="h-4 w-4" />}
+                icon={<Info className="h-4 w-4" />}
                 label="Target"
                 value={report.target_column ?? "—"}
               />
@@ -96,6 +109,20 @@ export function Results({ report }: { report: Report }) {
                 <Badge className={SEVERITY_COLORS.info.badge}>No issues found</Badge>
               )}
             </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Verdict</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col items-center pb-6">
+            <ScoreGauge score={report.overall_score} grade={report.overall_grade} />
+            <p className="mt-2 text-center text-sm text-muted-foreground">{report.verdict}</p>
+            {report.sampled && (
+              <p className="mt-2 text-center text-xs text-muted-foreground">
+                Based on a {report.n_rows_analyzed.toLocaleString()}-row sample
+              </p>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -140,20 +167,37 @@ export function Results({ report }: { report: Report }) {
         <div className="space-y-3 lg:col-span-3">
           <h3 className="flex items-center gap-2 text-lg font-semibold">
             <AlertTriangle className="h-5 w-5 text-foreground" />
-            Findings ({report.findings.length})
+            Critical Data Integrity Issues ({integrityIssues.length})
           </h3>
-          {sorted.length === 0 ? (
+          {integrityIssues.length === 0 ? (
             <Alert variant="info">
               <Info className="h-4 w-4" />
               <AlertTitle>No major issues</AlertTitle>
-              <AlertDescription>The checks did not flag anything material.</AlertDescription>
+              <AlertDescription>The integrity checks did not flag anything material.</AlertDescription>
             </Alert>
           ) : (
             <div className="space-y-2">
-              {sorted.map((f, i) => (
+              {integrityIssues.map((f, i) => (
                 <FindingCard key={`${f.code}-${f.column}-${i}`} finding={f} defaultOpen={i === 0} />
               ))}
             </div>
+          )}
+          <h3 className="pt-4 text-lg font-semibold">Modeling Warnings ({modelingWarnings.length})</h3>
+          <div className="space-y-2">
+            {modelingWarnings.map((f, i) => (
+              <FindingCard key={`${f.code}-${f.column}-model-${i}`} finding={f} defaultOpen={i === 0 && integrityIssues.length === 0} />
+            ))}
+            {!modelingWarnings.length && <p className="text-sm text-muted-foreground">No modeling warnings found.</p>}
+          </div>
+          {infoDiagnostics.length > 0 && (
+            <>
+              <h3 className="pt-4 text-lg font-semibold">Informational Diagnostics ({infoDiagnostics.length})</h3>
+              <div className="space-y-2">
+                {infoDiagnostics.map((f, i) => (
+                  <FindingCard key={`${f.code}-${f.column}-info-${i}`} finding={f} />
+                ))}
+              </div>
+            </>
           )}
         </div>
 

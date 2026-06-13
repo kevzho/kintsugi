@@ -13,6 +13,8 @@ export interface Finding {
   fix_snippet: string | null;
   metrics: Record<string, unknown>;
   score_penalty: number;
+  integrity_penalty: number;
+  readiness_penalty: number;
   category: "data_integrity" | "modeling_warning" | string;
 }
 
@@ -23,6 +25,8 @@ export interface ColumnProfile {
   null_rate: number;
   sample_values: string[];
   is_id_like: boolean;
+  name_kind?: string;
+  column_role?: string;
   is_high_cardinality: boolean;
   is_constant: boolean;
 }
@@ -44,6 +48,14 @@ export interface Report {
   target_column: string | null;
   health_score: number;
   grade: string;
+  integrity_score: number;
+  integrity_grade: string;
+  readiness_score: number;
+  readiness_grade: string;
+  overall_score: number;
+  overall_grade: string;
+  verdict: string;
+  dataset_type: string;
   findings: Finding[];
   modeling_warnings: Finding[];
   schema: Schema;
