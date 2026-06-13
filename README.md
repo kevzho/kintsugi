@@ -17,7 +17,7 @@ summary and recommendations are produced by a deterministic fallback.
 
 Target **leakage** is the single most expensive data-quality bug in applied ML: a
 feature that secretly encodes the label makes offline metrics look perfect and the
-model collapse in production. DataQuality IQ's hero engine hunts leakage with a
+model collapse in production. DataQuality IQ checks leakage with a
 layered heuristic stack (mutual information, correlation, name patterns, target
 copies, id memorization, duplicate-split leaks) and flags it as **CRITICAL** before
 you train.
@@ -36,7 +36,7 @@ you train.
                     │  dqi  (pure library, no web imports)     │
                     │   sample → infer_schema → engines        │
                     │   ├ missingness   ├ outliers             │
-                    │   ├ duplicates    ├ leakage  ★ hero      │
+                    │   ├ duplicates    ├ leakage              │
                     │   ├ imbalance     ├ feature_quality      │
                     │   └ correlation                          │
                     │   → score → fingerprint → Report         │
@@ -60,7 +60,7 @@ backend/
     report.py          Severity / Finding / Report (spine)
     config.py          all thresholds & weights (spine)
     schema.py          per-column type inference & profiling
-    engines/           7 engines (leakage is the hero)
+    engines/           diagnostics engines
     scoring.py         weighted, per-engine-capped health score
     ai/                groq_client (cached, degrades) + summarizer
     utils/             sampling + fingerprint

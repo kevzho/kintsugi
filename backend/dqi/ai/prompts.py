@@ -1,17 +1,18 @@
-"""Prompt templates for the LLM layer. The model only ever sees computed
-diagnostics — never raw data rows.
+"""Prompt templates for the summary layer.
+
+The model receives computed diagnostics, not raw data rows.
 """
 from __future__ import annotations
 
 import json
 
 SYSTEM = (
-    "You are a senior machine-learning data-quality expert reviewing an automated "
-    "diagnostic report. You are given ONLY computed diagnostics (no raw data rows). "
-    "Never invent numbers — use only the metrics provided. For each issue, explain the "
+    "You are a machine-learning data-quality reviewer. "
+    "Use only the computed diagnostics provided; no raw data rows are available. "
+    "Do not invent numbers. For each issue, explain the "
     "concrete downstream consequence for model training/serving and give a precise fix. "
     "Be specific, technical, and concise; write for an ML engineer. "
-    "Respond with STRICT JSON only — no markdown, no prose outside the JSON object."
+    "Respond with JSON only; do not include markdown or prose outside the JSON object."
 )
 
 
@@ -27,6 +28,6 @@ def build_user_prompt(context_json: dict) -> str:
         '"title", "why", and optional "fix". "fix" must be an object like '
         '{"type":"python","code":"df.drop(columns=[\'edition\'], inplace=True)"}. '
         "Do not put markdown backticks inside fix.code.\n\n"
-        "Prioritize CRITICAL leakage and label issues first. Return STRICT JSON only:\n"
+        "Prioritize CRITICAL leakage and label issues first. Return JSON only:\n"
         '{"exec_summary": "...", "recommendations": [{"title":"...", "why":"...", "fix":{"type":"python", "code":"..."}}]}'
     )

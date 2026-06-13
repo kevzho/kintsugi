@@ -1,5 +1,7 @@
-"""Builds the LLM context (diagnostics only), calls Groq, and falls back to a
-deterministic summary so the product is fully usable with the LLM OFF.
+"""Builds summary context from diagnostics and returns report copy.
+
+When the external summary service is unavailable, deterministic report text is
+used instead.
 """
 from __future__ import annotations
 

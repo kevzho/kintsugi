@@ -14,6 +14,16 @@ import {
 import type { CorrelationMatrixMetrics, Report } from "@/lib/types";
 
 const BAR = "hsl(var(--foreground))";
+const TOOLTIP_STYLE = {
+  backgroundColor: "hsl(var(--popover))",
+  border: "1px solid hsl(var(--border))",
+  borderRadius: "8px",
+  color: "hsl(var(--popover-foreground))",
+  boxShadow: "0 10px 24px hsl(var(--foreground) / 0.12)",
+};
+const TOOLTIP_TEXT_STYLE = {
+  color: "hsl(var(--popover-foreground))",
+};
 const PIE_COLORS = [
   "hsl(var(--foreground))",
   "hsl(var(--muted-foreground))",
@@ -43,7 +53,13 @@ export function MissingnessChart({ report }: { report: Report }) {
       <BarChart data={data} layout="vertical" margin={{ left: 16, right: 24 }}>
         <XAxis type="number" unit="%" domain={[0, 100]} tick={{ fontSize: 12 }} />
         <YAxis type="category" dataKey="column" width={120} tick={{ fontSize: 12 }} />
-        <Tooltip formatter={(v: number) => [`${v}%`, "missing"]} />
+        <Tooltip
+          formatter={(v: number) => [`${v}%`, "missing"]}
+          contentStyle={TOOLTIP_STYLE}
+          labelStyle={TOOLTIP_TEXT_STYLE}
+          itemStyle={TOOLTIP_TEXT_STYLE}
+          cursor={{ fill: "hsl(var(--muted) / 0.45)" }}
+        />
         <Bar dataKey="missing" fill={BAR} radius={[0, 6, 6, 0]} />
       </BarChart>
     </ResponsiveContainer>
@@ -67,7 +83,13 @@ export function OutliersChart({ report }: { report: Report }) {
       <BarChart data={data} layout="vertical" margin={{ left: 16, right: 24 }}>
         <XAxis type="number" unit="%" tick={{ fontSize: 12 }} />
         <YAxis type="category" dataKey="column" width={120} tick={{ fontSize: 12 }} />
-        <Tooltip formatter={(v: number) => [`${v}%`, "outliers"]} />
+        <Tooltip
+          formatter={(v: number) => [`${v}%`, "outliers"]}
+          contentStyle={TOOLTIP_STYLE}
+          labelStyle={TOOLTIP_TEXT_STYLE}
+          itemStyle={TOOLTIP_TEXT_STYLE}
+          cursor={{ fill: "hsl(var(--muted) / 0.45)" }}
+        />
         <Bar dataKey="rate" fill={BAR} radius={[0, 6, 6, 0]} />
       </BarChart>
     </ResponsiveContainer>
@@ -92,7 +114,12 @@ export function ImbalanceChart({ report }: { report: Report }) {
             <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
           ))}
         </Pie>
-        <Tooltip formatter={(v: number, n: string) => [`${v}%`, n]} />
+        <Tooltip
+          formatter={(v: number, n: string) => [`${v}%`, n]}
+          contentStyle={TOOLTIP_STYLE}
+          labelStyle={TOOLTIP_TEXT_STYLE}
+          itemStyle={TOOLTIP_TEXT_STYLE}
+        />
       </PieChart>
     </ResponsiveContainer>
   );

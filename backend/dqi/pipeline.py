@@ -1,5 +1,7 @@
-"""End-to-end analysis pipeline: parse -> sample -> profile -> engines -> score
--> fingerprint -> AI summary. Engines run via safe_run so none can crash the run.
+"""End-to-end analysis pipeline.
+
+Parse, sample, profile, run diagnostics, score, fingerprint, and summarize.
+Engines run through safe_run so a single check cannot interrupt analysis.
 """
 from __future__ import annotations
 
@@ -119,7 +121,7 @@ def analyze(df: pd.DataFrame, dataset_name: str, target: Optional[str] = None) -
 
     try:
         exec_summary, recommendations, ai_available = summarizer.summarize(report)
-    except Exception as exc:  # defensive: summarizer already degrades, but never crash analysis
+    except Exception as exc:  # defensive: summarizer should not interrupt analysis
         logger.warning("summarizer failed hard: %s", type(exc).__name__)
         exec_summary, recommendations, ai_available = "", [], False
     report.exec_summary = exec_summary

@@ -1,7 +1,7 @@
 """Deterministic two-score architecture.
 
-Groq and meta-classifiers never assign scores. Findings from rule engines are
-mapped into integrity and readiness penalties here.
+External summary text and meta-classifiers do not assign scores. Findings from
+rule engines are mapped into integrity and readiness penalties here.
 """
 from __future__ import annotations
 

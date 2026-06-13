@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ChevronDown, Wand2 } from "lucide-react";
+import { ChevronDown, Wrench } from "lucide-react";
 import type { Finding } from "@/lib/types";
 import { SEVERITY_COLORS } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
@@ -49,7 +49,7 @@ export function FindingCard({ finding, defaultOpen = false }: { finding: Finding
             <div className="space-y-3 rounded-lg border bg-background p-3">
               <div className="flex items-start gap-3">
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border bg-background text-foreground">
-                  <Wand2 className="h-4 w-4" />
+                  <Wrench className="h-4 w-4" />
                 </span>
                 <div>
                   <p className="text-sm font-medium text-foreground">Fix available</p>

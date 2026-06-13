@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useDropzone } from "react-dropzone";
-import { FileUp, Sparkles } from "lucide-react";
+import { FileUp, SearchCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { DemoInfo } from "@/lib/types";
@@ -69,7 +69,7 @@ export function UploadZone({ onAnalyzeFile, onAnalyzeDemo, demos, busy }: Upload
           onClick={() => file && onAnalyzeFile(file, target)}
           className="sm:w-auto"
         >
-          <Sparkles className="h-4 w-4" />
+          <SearchCheck className="h-4 w-4" />
           Analyze
         </Button>
       </div>

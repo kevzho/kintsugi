@@ -1,7 +1,7 @@
-"""Thin wrapper over the Groq SDK with on-disk caching and graceful degradation.
+"""Thin wrapper over the Groq SDK with on-disk caching.
 
-Never raises to the caller: on missing key, rate limit (429), timeout, or any
-error it returns None and the summarizer falls back to a deterministic summary.
+On missing key, rate limit, timeout, or any error, returns None so the caller can
+use deterministic summary text.
 """
 from __future__ import annotations
 
@@ -58,13 +58,13 @@ def chat(system: str, user: str) -> Optional[str]:
         return cached
 
     if not is_configured():
-        logger.info("GROQ_API_KEY not set — degrading to deterministic summary")
+        logger.info("GROQ_API_KEY not set; using deterministic summary")
         return None
 
     try:
         from groq import Groq
     except Exception:
-        logger.warning("groq SDK not importable — degrading")
+        logger.warning("groq SDK not importable; using deterministic summary")
         return None
 
     api_key = os.environ["GROQ_API_KEY"]

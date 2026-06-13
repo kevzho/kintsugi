@@ -103,12 +103,12 @@ CATEGORY_CAP = 40.0   # max total penalty any single engine can contribute
 GRADE_BANDS = [(90, "A"), (75, "B"), (60, "C"), (45, "D"), (0, "F")]
 
 # ---------------------------------------------------------------------------
-# AI layer
+# Summary service
 # ---------------------------------------------------------------------------
 GROQ_MODEL = "llama-3.3-70b-versatile"
 GROQ_TEMPERATURE = 0.2
 GROQ_MAX_TOKENS = 1200
-TOP_FINDINGS_FOR_LLM = 15      # never send more than this to the LLM
+TOP_FINDINGS_FOR_LLM = 15      # cap the context sent to the summary service
 
 
 def grade_for(score: float) -> str:

@@ -7,7 +7,6 @@ import {
   Download,
   Info,
   Rows3,
-  Sparkles,
   Zap,
   Gauge,
 } from "lucide-react";
@@ -191,11 +190,7 @@ export function Results({ report }: { report: Report }) {
             <ClipboardList className="h-5 w-5 text-foreground" />
             Summary
             <Badge className="border-border bg-muted text-muted-foreground">
-              {report.ai_available ? (
-                <span className="flex items-center gap-1"><Sparkles className="h-3 w-3" /> assisted</span>
-              ) : (
-                "local"
-              )}
+              {report.ai_available ? "enhanced" : "standard"}
             </Badge>
           </CardTitle>
         </CardHeader>

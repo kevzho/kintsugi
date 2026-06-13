@@ -1,12 +1,9 @@
 """Core data contracts for Data Quality IQ.
 
-These dataclasses are the spine of the entire system. Every engine returns
-List[Finding]; the pipeline aggregates them into a Report. The frontend and
-the AI layer both consume the JSON form of these objects.
-
-IMPORTANT: nothing in this module (or anywhere in `dqi/`) may import a web
-framework. The engine is a pure library so it can be served by FastAPI today
-and reused as a CLI / GitHub Action / library later.
+Every engine returns findings; the pipeline aggregates them into a report.
+The API, frontend, and summary layer consume the JSON form of these objects.
+This module stays framework-free so the library can run behind FastAPI, a CLI,
+or CI checks.
 """
 from __future__ import annotations
 
@@ -68,8 +65,8 @@ class Finding:
     detail: str                          # deterministic technical explanation
     impact: str                          # downstream ML consequence
     column: Optional[str] = None         # column the finding relates to (if any)
-    fix_snippet: Optional[str] = None    # copy-pasteable pandas fix
-    metrics: dict[str, Any] = field(default_factory=dict)  # numbers for charts / LLM
+    fix_snippet: Optional[str] = None    # pandas fix snippet
+    metrics: dict[str, Any] = field(default_factory=dict)  # numbers for charts and summaries
     score_penalty: float = 0.0           # filled by scoring layer
     integrity_penalty: float = 0.0       # filled by scoring layer
     readiness_penalty: float = 0.0       # filled by scoring layer
@@ -112,8 +109,8 @@ class Report:
     fingerprint: str                     # cache key
     severity_counts: dict[str, int] = field(default_factory=dict)
     modeling_warnings: list[Finding] = field(default_factory=list)
-    exec_summary: str = ""               # filled by AI layer
-    recommendations: list[Recommendation] = field(default_factory=list)  # AI-enriched, ordered
+    exec_summary: str = ""               # filled by summary layer
+    recommendations: list[Recommendation] = field(default_factory=list)  # ordered next steps
     ai_available: bool = True            # False if Groq was unavailable (graceful degradation)
     generated_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 

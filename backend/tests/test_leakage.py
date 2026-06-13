@@ -1,4 +1,4 @@
-"""The hero engine: leaky.csv must yield a CRITICAL leakage finding."""
+"""Leakage checks for datasets with target-derived features."""
 from __future__ import annotations
 
 import dqi

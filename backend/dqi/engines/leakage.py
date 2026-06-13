@@ -1,4 +1,4 @@
-"""Leakage engine — THE HERO.
+"""Target leakage diagnostics.
 
 Detects features that leak the target. Heuristic stack (run in order):
   1. High mutual information / |corr| with target  -> CRITICAL perfect predictor
@@ -7,8 +7,8 @@ Detects features that leak the target. Heuristic stack (run in order):
   4. id-like column used as a feature -> HIGH (memorization)
   5. Duplicates + target present -> warn random splits leak
 
-Handles both classification (categorical target) and regression (numeric target).
-Categoricals are factorized before mutual information. Never raises.
+Handles both classification and regression targets. Categoricals are factorized
+before mutual information.
 """
 from __future__ import annotations
 
@@ -189,7 +189,7 @@ class LeakageEngine(Engine):
                             title=f"'{c}' is {kind} the target",
                             detail=f"'{c}' reproduces '{target}' ({'exact match' if exact else 'spearman~1.0'}).",
                             impact=(
-                                "This column IS the answer. A model 'trained' on it will look "
+                                "This column reproduces the answer. A model trained on it will look "
                                 "perfect offline and collapse in production where it isn't available."
                             ),
                             column=c,
@@ -221,7 +221,7 @@ class LeakageEngine(Engine):
                         impact=(
                             "Near-perfect single-feature predictive power is the signature of "
                             "leakage: the column likely encodes the outcome or is recorded after it. "
-                            "Offline metrics will be fantasy."
+                            "Offline metrics will not reflect production performance."
                         ),
                         column=c,
                         fix_snippet=f"# Confirm timing, then drop\ndf = df.drop(columns=[{c!r}])",
@@ -253,7 +253,7 @@ class LeakageEngine(Engine):
                                 "the label or computed post-hoc; using them leaks the target."
                             ),
                             column=c,
-                            fix_snippet=f"# Likely post-outcome — verify and drop\ndf = df.drop(columns=[{c!r}])",
+                            fix_snippet=f"# Verify feature timing, then drop if post-outcome\ndf = df.drop(columns=[{c!r}])",
                             metrics={"mi": round(mi, 4), "corr": round(corr, 4)},
                         )
                     )
@@ -272,7 +272,7 @@ class LeakageEngine(Engine):
                         detail=f"'{c}' is near-unique ({p.get('cardinality_ratio', 0):.2f} distinct ratio).",
                         impact=(
                             "Near-unique identifiers let tree/embedding models memorize individual "
-                            "rows — perfect on train, worthless on unseen ids."
+                            "rows, which hurts performance on unseen ids."
                         ),
                         column=c,
                         fix_snippet=f"df = df.drop(columns=[{c!r}])",
