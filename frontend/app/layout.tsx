@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "DataQuality IQ",
+  title: "Kintsugi",
   description:
     "Review CSV quality, leakage risk, missingness, outliers, and class balance before model work begins.",
 };

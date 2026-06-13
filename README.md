@@ -14,34 +14,12 @@ The product is fully usable with the LLM **disabled**: when no `GROQ_API_KEY` is
 
 Kintsugi is the Japanese art of repairing broken objects with gold, treating breakage as something to understand and repair rather than hide. That maps naturally to data quality: broken datasets should be diagnosed clearly before model training begins. [web:35][web:44][web:47]
 
-Target **leakage** is one of the most expensive data-quality bugs in applied ML: a feature that secretly encodes the label can make offline metrics look perfect and cause models to collapse in production.
-
-Kintsugi checks leakage with a layered heuristic stack:
-- Mutual information
-- Correlation
-- Name-pattern rules
-- Target-copy checks
-- ID memorization signals
-- Duplicate-split leak checks
-
-If leakage is strongly suspected, it is flagged as **CRITICAL** before training begins.
-
----
-
-## Features
-
-- 0–100 dataset health score with letter grade
-- Target-leakage detection with severity ranking
-- Missingness diagnostics
-- Duplicate-row and duplicate-key checks
-- Class-imbalance analysis
-- Outlier diagnostics
-- Correlation and feature-quality checks
-- Executive summary and recommendations
-- Deterministic fallback when no LLM key is configured
-- Privacy-first design: only computed diagnostics go to the LLM
-
----
+Target **leakage** is the single most expensive data-quality bug in applied ML: a
+feature that secretly encodes the label makes offline metrics look perfect and the
+model collapse in production. DataQuality IQ checks leakage with a
+layered heuristic stack (mutual information, correlation, name patterns, target
+copies, id memorization, duplicate-split leaks) and flags it as **CRITICAL** before
+you train.
 
 ## Architecture
 

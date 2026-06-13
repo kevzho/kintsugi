@@ -1,4 +1,4 @@
-"""Data Quality IQ — pure analytics library (no web framework imports)."""
+"""Kintsugi — pure analytics library (no web framework imports)."""
 from __future__ import annotations
 
 from .pipeline import analyze, analyze_csv_bytes

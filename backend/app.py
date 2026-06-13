@@ -1,4 +1,4 @@
-"""FastAPI server for Data Quality IQ.
+"""FastAPI server for Kintsugi.
 
 Thin HTTP layer over the `dqi` library. Enforces input caps + per-IP rate
 limiting, never logs raw data (only shapes and codes), and returns clean JSON
@@ -81,7 +81,7 @@ def _check_rate_limit(request: Request) -> None:
     q.append(now)
 
 
-app = FastAPI(title="Data Quality IQ", version="1.0.0")
+app = FastAPI(title="Kintsugi", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,

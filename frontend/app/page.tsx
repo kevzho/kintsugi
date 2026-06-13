@@ -19,7 +19,7 @@ import {
   MenubarTrigger,
 } from "@/components/ui/menubar";
 
-const GITHUB_URL = "https://github.com/your-org/dataquality-iq";
+const GITHUB_URL = "https://github.com/your-org/kintsugi";
 
 export default function Home() {
   const [demos, setDemos] = React.useState<DemoInfo[]>([]);
@@ -72,7 +72,7 @@ export default function Home() {
               <Radar className="h-5 w-5" />
             </div>
             <span className="text-lg font-bold tracking-tight">
-              DataQuality IQ
+              Kintsugi
             </span>
           </div>
           <div className="flex w-full items-center gap-2 sm:w-auto">

@@ -1,4 +1,4 @@
-"""Core data contracts for Data Quality IQ.
+"""Core data contracts for Kintsugi.
 
 Every engine returns findings; the pipeline aggregates them into a report.
 The API, frontend, and summary layer consume the JSON form of these objects.

@@ -1,4 +1,4 @@
-# DataQuality IQ — Frontend
+# Kintsugi — Frontend
 
 Next.js 14 (App Router) + TypeScript + Tailwind + shadcn-style UI + Recharts.
 

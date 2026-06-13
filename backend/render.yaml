@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: dataquality-iq-api
+    name: kintsugi-api
     runtime: python
     plan: free
     rootDir: backend
