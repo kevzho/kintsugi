@@ -29,11 +29,11 @@ import { downloadMarkdown } from "@/lib/markdown";
 
 function StatTile({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
-    <div className="flex items-center gap-3 rounded-xl border bg-card p-3">
-      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">{icon}</div>
-      <div>
+    <div className="flex min-w-0 items-center gap-3 rounded-lg border bg-card p-3">
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border bg-background text-foreground">{icon}</div>
+      <div className="min-w-0">
         <p className="text-xs text-muted-foreground">{label}</p>
-        <p className="font-semibold tabular-nums text-foreground">{value}</p>
+        <p className="truncate font-semibold tabular-nums text-foreground">{value}</p>
       </div>
     </div>
   );
@@ -51,7 +51,7 @@ export function Results({ report }: { report: Report }) {
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-1">
           <CardHeader>
-            <CardTitle className="text-base text-muted-foreground">Health Score</CardTitle>
+            <CardTitle className="text-base text-muted-foreground">Score</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col items-center pb-8">
             <ScoreGauge score={report.health_score} grade={report.grade} />
@@ -65,10 +65,10 @@ export function Results({ report }: { report: Report }) {
 
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle className="flex items-center justify-between text-base text-muted-foreground">
-              <span>At a glance — {report.dataset_name}</span>
+            <CardTitle className="flex flex-col gap-3 text-base text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+              <span className="min-w-0 truncate">{report.dataset_name}</span>
               <Button variant="outline" size="sm" onClick={() => downloadMarkdown(report)}>
-                <Download className="h-4 w-4" /> Download report
+                <Download className="h-4 w-4" /> Download
               </Button>
             </CardTitle>
           </CardHeader>
@@ -100,17 +100,17 @@ export function Results({ report }: { report: Report }) {
         </Card>
       </div>
 
-      {/* Executive summary */}
-      <Card className="border-primary/30 bg-accent/40">
+      {/* Summary */}
+      <Card className="border-border bg-card">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <ClipboardList className="h-5 w-5 text-primary" />
-            Executive Summary
-            <Badge className={report.ai_available ? "bg-primary/10 text-primary border-primary/20" : "bg-slate-100 text-slate-600 border-slate-200"}>
+            <ClipboardList className="h-5 w-5 text-foreground" />
+            Summary
+            <Badge className="border-border bg-muted text-muted-foreground">
               {report.ai_available ? (
-                <span className="flex items-center gap-1"><Sparkles className="h-3 w-3" /> AI</span>
+                <span className="flex items-center gap-1"><Sparkles className="h-3 w-3" /> assisted</span>
               ) : (
-                "deterministic"
+                "local"
               )}
             </Badge>
           </CardTitle>
@@ -119,11 +119,11 @@ export function Results({ report }: { report: Report }) {
           <p className="leading-relaxed text-foreground/90">{report.exec_summary}</p>
           {report.recommendations.length > 0 && (
             <div>
-              <p className="mb-2 text-sm font-semibold text-foreground">Recommended actions</p>
+              <p className="mb-2 text-sm font-semibold text-foreground">Next steps</p>
               <ol className="space-y-2">
                 {report.recommendations.map((rec, i) => (
                   <li key={i} className="flex gap-2 text-sm text-foreground/90">
-                    <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground">
+                    <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border bg-background text-[11px] font-bold text-foreground">
                       {i + 1}
                     </span>
                     <span>{rec}</span>
@@ -139,14 +139,14 @@ export function Results({ report }: { report: Report }) {
       <div className="grid gap-6 lg:grid-cols-5">
         <div className="space-y-3 lg:col-span-3">
           <h3 className="flex items-center gap-2 text-lg font-semibold">
-            <AlertTriangle className="h-5 w-5 text-orange-500" />
+            <AlertTriangle className="h-5 w-5 text-foreground" />
             Findings ({report.findings.length})
           </h3>
           {sorted.length === 0 ? (
             <Alert variant="info">
               <Info className="h-4 w-4" />
-              <AlertTitle>Looks clean</AlertTitle>
-              <AlertDescription>No material data-quality issues were detected.</AlertDescription>
+              <AlertTitle>No major issues</AlertTitle>
+              <AlertDescription>The checks did not flag anything material.</AlertDescription>
             </Alert>
           ) : (
             <div className="space-y-2">

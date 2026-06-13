@@ -88,6 +88,7 @@ def analyze(df: pd.DataFrame, dataset_name: str, target: Optional[str] = None) -
         health_score=health_score,
         grade=grade,
         findings=findings,
+        modeling_warnings=[f for f in findings if f.category == "modeling_warning"],
         schema=schema,
         fingerprint=fp,
         severity_counts=severity_counts,

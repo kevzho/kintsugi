@@ -15,7 +15,13 @@ def score_report(findings: list[Finding]) -> tuple[float, str, dict[str, int]]:
 
     for f in findings:
         weight = config.SEVERITY_WEIGHTS.get(f.severity, 0.0)
-        room = config.CATEGORY_CAP - per_engine[f.engine]
+        engine_cap = config.OUTLIER_MAX_SCORE_PENALTY if f.engine == "outliers" else config.CATEGORY_CAP
+        if f.engine == "outliers":
+            f.category = "modeling_warning"
+            weight = min(weight, config.OUTLIER_FINDING_MAX_SCORE_PENALTY)
+        elif f.category == "modeling_warning":
+            weight = 0.0
+        room = engine_cap - per_engine[f.engine]
         applied = max(0.0, min(weight, room))
         f.score_penalty = round(applied, 2)
         per_engine[f.engine] += applied

@@ -3,12 +3,29 @@ without re-deriving everything. Pure pandas/numpy — no web framework imports.
 """
 from __future__ import annotations
 
+import re
 from typing import Any
 
 import numpy as np
 import pandas as pd
 
 from . import config
+
+_MEASUREMENT_NAME_RE = re.compile(config.MEASUREMENT_NAME_PATTERN, re.IGNORECASE)
+_IDENTIFIER_NAME_RE = re.compile(config.IDENTIFIER_NAME_PATTERN, re.IGNORECASE)
+
+
+def _normalized_name(col: Any) -> str:
+    return re.sub(r"[^a-z0-9]+", "_", str(col).strip().lower()).strip("_")
+
+
+def _name_kind(col: Any) -> str:
+    name = _normalized_name(col)
+    if _MEASUREMENT_NAME_RE.search(name):
+        return "measurement"
+    if _IDENTIFIER_NAME_RE.search(name):
+        return "identifier"
+    return "unknown"
 
 
 def _stringify_samples(series: pd.Series, k: int = 3) -> list[str]:
@@ -67,10 +84,6 @@ def _infer_dtype(series: pd.Series, n_unique: int, n_total: int) -> str:
         return "boolean"
 
     if pd.api.types.is_numeric_dtype(series):
-        # integer near-unique -> id
-        ratio = n_unique / max(n_total, 1)
-        if ratio >= config.ID_CARDINALITY_RATIO and pd.api.types.is_integer_dtype(series):
-            return "id"
         return "numeric"
 
     if pd.api.types.is_datetime64_any_dtype(series):
@@ -104,15 +117,23 @@ def infer_schema(df: pd.DataFrame) -> dict[str, Any]:
         null_rate = float(series.isna().mean()) if n_total else 0.0
         cardinality_ratio = float(n_unique / n_total) if n_total else 0.0
         dtype_inferred = _infer_dtype(series, n_unique, n_total)
+        name_kind = _name_kind(col)
 
-        # id-like = near-unique AND not a continuous float (floats are rarely true ids).
-        is_float_continuous = (
-            dtype_inferred == "numeric"
-            and pd.api.types.is_float_dtype(pd.to_numeric(series, errors="coerce"))
+        # Confirm identifiers with both naming and structure. High-cardinality
+        # numeric measurements must stay numeric: population, counts, rates,
+        # GDP, crime counts, etc. are not IDs just because they vary by row.
+        is_identifier_name = name_kind == "identifier"
+        is_measurement_name = name_kind == "measurement"
+        is_near_unique = cardinality_ratio >= config.ID_CARDINALITY_RATIO
+        is_id_like = bool(
+            is_identifier_name
+            and not is_measurement_name
+            and (n_unique >= 2)
         )
-        is_id_like = dtype_inferred == "id" or (
-            cardinality_ratio >= config.ID_CARDINALITY_RATIO and not is_float_continuous
-        )
+        if is_id_like and dtype_inferred != "id":
+            dtype_inferred = "id"
+        elif dtype_inferred == "id":
+            dtype_inferred = "categorical"
         is_high_cardinality = (
             dtype_inferred in ("categorical", "text")
             and (
@@ -129,6 +150,7 @@ def infer_schema(df: pd.DataFrame) -> dict[str, Any]:
             "null_rate": round(null_rate, 4),
             "sample_values": _stringify_samples(series),
             "is_id_like": bool(is_id_like),
+            "name_kind": name_kind,
             "is_high_cardinality": bool(is_high_cardinality),
             "is_constant": bool(is_constant),
         }

@@ -1,14 +1,23 @@
 "use client";
 
 import * as React from "react";
-import { AlertCircle, Github, Radar, ShieldCheck } from "lucide-react";
+import { AlertCircle, BarChart3, FileUp, Github, Radar, ShieldCheck } from "lucide-react";
 import { analyze, analyzeDemo, getDemos } from "@/lib/api";
 import type { DemoInfo, Report } from "@/lib/types";
 import { UploadZone } from "@/components/UploadZone";
 import { LoadingState } from "@/components/LoadingState";
 import { Results } from "@/components/Results";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
+import {
+  Menubar,
+  MenubarContent,
+  MenubarItem,
+  MenubarMenu,
+  MenubarSeparator,
+  MenubarShortcut,
+  MenubarTrigger,
+} from "@/components/ui/menubar";
 
 const GITHUB_URL = "https://github.com/your-org/dataquality-iq";
 
@@ -25,9 +34,9 @@ export default function Home() {
       .catch(() => {
         // fall back to static demo metadata if the backend is asleep
         setDemos([
-          { id: "clean", name: "Clean", description: "A well-behaved dataset that should score an A/B.", suggested_target: "churned" },
-          { id: "messy", name: "Messy", description: "Missingness, duplicates, outliers, and class imbalance.", suggested_target: "converted" },
-          { id: "leaky", name: "Leaky", description: "Contains an obvious target-leakage column — should score an F.", suggested_target: "defaulted" },
+          { id: "clean", name: "Clean", description: "Low-risk sample with ordinary customer fields.", suggested_target: "churned" },
+          { id: "messy", name: "Messy", description: "A file with missing values, duplicates, and outliers.", suggested_target: "converted" },
+          { id: "leaky", name: "Leaky", description: "A sample with a column that gives the target away.", suggested_target: "defaulted" },
         ]);
       });
   }, []);
@@ -56,47 +65,80 @@ export default function Home() {
   return (
     <div className="min-h-screen">
       {/* Header */}
-      <header className="sticky top-0 z-20 border-b bg-background/80 backdrop-blur">
-        <div className="container flex h-16 items-center justify-between">
+      <header className="sticky top-0 z-20 border-b bg-background/90 backdrop-blur">
+        <div className="container flex min-h-16 flex-col gap-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:py-0">
           <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+            <div className="flex h-8 w-8 items-center justify-center rounded-md border bg-background text-foreground shadow-sm">
               <Radar className="h-5 w-5" />
             </div>
             <span className="text-lg font-bold tracking-tight">
-              DataQuality<span className="text-primary"> IQ</span>
+              DataQuality IQ
             </span>
           </div>
-          <nav className="flex items-center gap-2">
-            <a href="#how-it-works">
-              <Button variant="ghost" size="sm">How it works</Button>
-            </a>
-            <a href={GITHUB_URL} target="_blank" rel="noreferrer">
-              <Button variant="outline" size="sm">
-                <Github className="h-4 w-4" /> GitHub
-              </Button>
-            </a>
-          </nav>
+          <div className="flex w-full items-center gap-2 sm:w-auto">
+            <Menubar className="min-w-0 flex-1 justify-start sm:flex-none">
+              <MenubarMenu>
+                <MenubarTrigger>Dataset</MenubarTrigger>
+                <MenubarContent>
+                  <MenubarItem onSelect={() => document.getElementById("upload")?.scrollIntoView({ behavior: "smooth" })}>
+                    Upload CSV
+                    <MenubarShortcut><FileUp className="h-3.5 w-3.5" /></MenubarShortcut>
+                  </MenubarItem>
+                  <MenubarItem onSelect={() => document.getElementById("how-it-works")?.scrollIntoView({ behavior: "smooth" })}>
+                    View workflow
+                    <MenubarShortcut><BarChart3 className="h-3.5 w-3.5" /></MenubarShortcut>
+                  </MenubarItem>
+                </MenubarContent>
+              </MenubarMenu>
+              <MenubarMenu>
+                <MenubarTrigger>Reports</MenubarTrigger>
+                <MenubarContent>
+                  <MenubarItem
+                    disabled={!report}
+                    onSelect={() => document.getElementById("results")?.scrollIntoView({ behavior: "smooth" })}
+                  >
+                    Current analysis
+                  </MenubarItem>
+                  <MenubarSeparator />
+                  <MenubarItem disabled={!report}>
+                    Findings
+                    <MenubarShortcut>{report?.findings.length ?? 0}</MenubarShortcut>
+                  </MenubarItem>
+                </MenubarContent>
+              </MenubarMenu>
+              <MenubarMenu>
+                <MenubarTrigger>Project</MenubarTrigger>
+                <MenubarContent align="end">
+                  <MenubarItem onSelect={() => window.open(GITHUB_URL, "_blank", "noreferrer")}>
+                    GitHub
+                    <MenubarShortcut><Github className="h-3.5 w-3.5" /></MenubarShortcut>
+                  </MenubarItem>
+                </MenubarContent>
+              </MenubarMenu>
+            </Menubar>
+            <ThemeToggle />
+          </div>
         </div>
       </header>
 
-      <main className="container space-y-12 py-10">
+      <main className="container space-y-10 py-10">
         {/* Hero */}
         <section className="mx-auto max-w-3xl text-center">
-          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-accent px-3 py-1 text-xs font-medium text-accent-foreground">
-            <ShieldCheck className="h-3.5 w-3.5" /> Catches target leakage before it costs you a week
+          <div className="mb-4 inline-flex items-center gap-2 rounded-full border bg-background px-3 py-1 text-xs font-medium text-muted-foreground shadow-sm">
+            <ShieldCheck className="h-3.5 w-3.5" /> Checks leakage, missingness, balance, and drift signals
           </div>
           <h1 className="text-balance text-4xl font-extrabold tracking-tight sm:text-5xl">
-            Know what&apos;s wrong with your dataset before you waste a week training on it.
+            A quick read on whether a CSV is ready for modeling.
           </h1>
           <p className="mt-4 text-pretty text-lg text-muted-foreground">
-            Upload a CSV and get a 0–100 health score, leakage &amp; imbalance detection, and a
-            paste-ready executive summary — in seconds. Your data is processed in memory and never stored.
+            Upload a file, choose a target column if you have one, and review the issues that usually slow down model work.
+            Rows are analyzed in memory and are not stored.
           </p>
         </section>
 
         {/* Upload */}
-        <section className="mx-auto max-w-3xl">
-          <div className="rounded-2xl border bg-card p-6 shadow-sm">
+        <section id="upload" className="mx-auto max-w-3xl scroll-mt-24">
+          <div className="rounded-lg border bg-card p-6 shadow-sm">
             <UploadZone
               demos={demos}
               busy={busy}
@@ -107,7 +149,7 @@ export default function Home() {
         </section>
 
         {/* States */}
-        <section className="mx-auto max-w-6xl">
+        <section id="results" className="mx-auto max-w-6xl scroll-mt-24">
           {error && (
             <Alert variant="destructive" className="mb-6">
               <AlertCircle className="h-4 w-4" />
@@ -121,23 +163,23 @@ export default function Home() {
           {!busy && report && <Results report={report} />}
 
           {!busy && !report && !error && (
-            <div id="how-it-works" className="mx-auto mt-4 grid max-w-4xl gap-4 sm:grid-cols-3">
+            <div id="how-it-works" className="mx-auto mt-4 grid max-w-4xl scroll-mt-24 gap-4 sm:grid-cols-3">
               {[
                 {
                   title: "1. Upload",
-                  body: "Drop a CSV (or pick a demo). Optionally name the target column to unlock leakage and imbalance checks.",
+                  body: "Drop a CSV or open a sample. Add the target column when the file has one.",
                 },
                 {
-                  title: "2. Analyze",
-                  body: "Deterministic engines profile types, missingness, duplicates, outliers, correlations, feature quality, and target leakage.",
+                  title: "2. Review",
+                  body: "The app checks schema shape, missing values, duplicates, outliers, correlations, balance, and leakage risk.",
                 },
                 {
-                  title: "3. Act",
-                  body: "Get a health score, an executive summary, and copy-pasteable pandas fixes — only diagnostics are sent to the LLM, never your data.",
+                  title: "3. Fix",
+                  body: "Use the score, findings, and suggested fixes to decide what needs cleanup before training.",
                 },
               ].map((s) => (
-                <div key={s.title} className="rounded-2xl border bg-card p-5">
-                  <p className="font-semibold text-primary">{s.title}</p>
+                <div key={s.title} className="rounded-lg border bg-card p-5">
+                  <p className="font-semibold text-foreground">{s.title}</p>
                   <p className="mt-1 text-sm text-muted-foreground">{s.body}</p>
                 </div>
               ))}
@@ -148,7 +190,7 @@ export default function Home() {
 
       <footer className="border-t py-8">
         <div className="container text-center text-sm text-muted-foreground">
-          Built with FastAPI, scikit-learn, Next.js &amp; Groq. Data processed in memory — never stored.
+          FastAPI, scikit-learn, and Next.js. Uploaded rows stay in memory.
         </div>
       </footer>
     </div>

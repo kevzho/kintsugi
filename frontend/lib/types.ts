@@ -13,6 +13,7 @@ export interface Finding {
   fix_snippet: string | null;
   metrics: Record<string, unknown>;
   score_penalty: number;
+  category: "data_integrity" | "modeling_warning" | string;
 }
 
 export interface ColumnProfile {
@@ -44,6 +45,7 @@ export interface Report {
   health_score: number;
   grade: string;
   findings: Finding[];
+  modeling_warnings: Finding[];
   schema: Schema;
   fingerprint: string;
   severity_counts: Record<string, number>;
@@ -73,48 +75,44 @@ export const SEVERITY_COLORS: Record<
   { badge: string; dot: string; text: string; ring: string }
 > = {
   critical: {
-    badge: "bg-red-100 text-red-700 border-red-200",
-    dot: "bg-red-500",
-    text: "text-red-600",
-    ring: "ring-red-200",
+    badge: "border-foreground/30 bg-background text-foreground",
+    dot: "bg-foreground",
+    text: "text-foreground",
+    ring: "ring-foreground/20",
   },
   high: {
-    badge: "bg-orange-100 text-orange-700 border-orange-200",
-    dot: "bg-orange-500",
-    text: "text-orange-600",
-    ring: "ring-orange-200",
+    badge: "border-foreground/20 bg-muted text-foreground",
+    dot: "bg-foreground/80",
+    text: "text-foreground",
+    ring: "ring-foreground/20",
   },
   medium: {
-    badge: "bg-amber-100 text-amber-700 border-amber-200",
-    dot: "bg-amber-500",
-    text: "text-amber-600",
-    ring: "ring-amber-200",
+    badge: "border-border bg-secondary text-secondary-foreground",
+    dot: "bg-foreground/60",
+    text: "text-foreground",
+    ring: "ring-foreground/15",
   },
   low: {
-    badge: "bg-sky-100 text-sky-700 border-sky-200",
-    dot: "bg-sky-500",
-    text: "text-sky-600",
-    ring: "ring-sky-200",
+    badge: "border-border bg-background text-muted-foreground",
+    dot: "bg-muted-foreground",
+    text: "text-muted-foreground",
+    ring: "ring-border",
   },
   info: {
-    badge: "bg-slate-100 text-slate-600 border-slate-200",
-    dot: "bg-slate-400",
-    text: "text-slate-600",
-    ring: "ring-slate-200",
+    badge: "border-border bg-background text-muted-foreground",
+    dot: "bg-muted-foreground/70",
+    text: "text-muted-foreground",
+    ring: "ring-border",
   },
 };
 
 export function gradeColor(grade: string): string {
   switch (grade) {
     case "A":
-      return "text-emerald-600";
     case "B":
-      return "text-green-600";
     case "C":
-      return "text-amber-600";
     case "D":
-      return "text-orange-600";
     default:
-      return "text-red-600";
+      return "text-foreground";
   }
 }

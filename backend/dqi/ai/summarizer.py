@@ -54,6 +54,7 @@ def build_context(report: "Report") -> dict:
             {
                 "code": f.code,
                 "severity": f.severity.value,
+                "category": f.category,
                 "column": f.column,
                 "title": f.title,
                 "impact": f.impact,

@@ -36,7 +36,7 @@ export function TabsList({
   return (
     <div
       className={cn(
-        "inline-flex flex-wrap items-center justify-center gap-1 rounded-xl bg-muted p-1 text-muted-foreground",
+        "inline-flex flex-wrap items-center justify-center gap-1 rounded-lg bg-muted p-1 text-muted-foreground",
         className,
       )}
     >
@@ -62,7 +62,7 @@ export function TabsTrigger({
       type="button"
       onClick={() => ctx.setValue(value)}
       className={cn(
-        "inline-flex items-center justify-center whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
         active ? "bg-background text-foreground shadow-sm" : "hover:text-foreground",
         className,
       )}

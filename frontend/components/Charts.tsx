@@ -13,12 +13,17 @@ import {
 } from "recharts";
 import type { CorrelationMatrixMetrics, Report } from "@/lib/types";
 
-const INDIGO = "#4F46E5";
-const PIE_COLORS = ["#4F46E5", "#22c55e", "#f59e0b", "#ef4444", "#06b6d4", "#a855f7", "#ec4899"];
+const BAR = "hsl(var(--foreground))";
+const PIE_COLORS = [
+  "hsl(var(--foreground))",
+  "hsl(var(--muted-foreground))",
+  "hsl(var(--border))",
+  "hsl(var(--accent-foreground))",
+];
 
 function EmptyChart({ message }: { message: string }) {
   return (
-    <div className="flex h-64 items-center justify-center rounded-xl border border-dashed text-sm text-muted-foreground">
+    <div className="flex h-64 items-center justify-center rounded-lg border border-dashed px-4 text-center text-sm text-muted-foreground">
       {message}
     </div>
   );
@@ -31,7 +36,7 @@ export function MissingnessChart({ report }: { report: Report }) {
     .sort((a, b) => b.missing - a.missing)
     .slice(0, 15);
 
-  if (!data.length) return <EmptyChart message="No missing values detected 🎉" />;
+  if (!data.length) return <EmptyChart message="No missing values detected." />;
 
   return (
     <ResponsiveContainer width="100%" height={Math.max(260, data.length * 34)}>
@@ -39,7 +44,7 @@ export function MissingnessChart({ report }: { report: Report }) {
         <XAxis type="number" unit="%" domain={[0, 100]} tick={{ fontSize: 12 }} />
         <YAxis type="category" dataKey="column" width={120} tick={{ fontSize: 12 }} />
         <Tooltip formatter={(v: number) => [`${v}%`, "missing"]} />
-        <Bar dataKey="missing" fill={INDIGO} radius={[0, 6, 6, 0]} />
+        <Bar dataKey="missing" fill={BAR} radius={[0, 6, 6, 0]} />
       </BarChart>
     </ResponsiveContainer>
   );
@@ -63,7 +68,7 @@ export function OutliersChart({ report }: { report: Report }) {
         <XAxis type="number" unit="%" tick={{ fontSize: 12 }} />
         <YAxis type="category" dataKey="column" width={120} tick={{ fontSize: 12 }} />
         <Tooltip formatter={(v: number) => [`${v}%`, "outliers"]} />
-        <Bar dataKey="rate" fill="#ea580c" radius={[0, 6, 6, 0]} />
+        <Bar dataKey="rate" fill={BAR} radius={[0, 6, 6, 0]} />
       </BarChart>
     </ResponsiveContainer>
   );
@@ -94,10 +99,9 @@ export function ImbalanceChart({ report }: { report: Report }) {
 }
 
 function corrColor(v: number): string {
-  // diverging indigo (positive) / red (negative)
   const a = Math.abs(v);
-  if (v >= 0) return `rgba(79, 70, 229, ${a})`;
-  return `rgba(220, 38, 38, ${a})`;
+  if (v >= 0) return `hsl(0 0% ${100 - a * 72}%)`;
+  return `hsl(0 0% ${94 - a * 60}%)`;
 }
 
 export function CorrelationHeatmap({ report }: { report: Report }) {

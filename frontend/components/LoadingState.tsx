@@ -6,11 +6,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const MESSAGES = [
-  "Profiling columns and inferring types…",
-  "Scanning for missing values and duplicates…",
-  "Hunting for target leakage (the expensive bug)…",
-  "Measuring outliers and class balance…",
-  "Composing your executive summary…",
+  "Reading columns and types...",
+  "Checking missing values and duplicates...",
+  "Checking leakage risk...",
+  "Measuring outliers and class balance...",
+  "Preparing the report...",
 ];
 
 export function LoadingState({ coldStart }: { coldStart: boolean }) {
@@ -26,12 +26,12 @@ export function LoadingState({ coldStart }: { coldStart: boolean }) {
         <div className="flex items-center gap-3">
           <Loader2 className="h-5 w-5 animate-spin text-primary" />
           <p className="text-sm font-medium text-foreground">
-            {coldStart ? "Waking up the analysis engine…" : MESSAGES[idx]}
+            {coldStart ? "Starting the backend..." : MESSAGES[idx]}
           </p>
         </div>
         {coldStart && (
           <p className="-mt-3 pl-8 text-xs text-muted-foreground">
-            The free-tier backend may take ~30s to spin up on the first request. Hang tight.
+            First requests can take about 30 seconds on a sleeping backend.
           </p>
         )}
         <div className="grid gap-4 sm:grid-cols-3">

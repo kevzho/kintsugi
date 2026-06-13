@@ -161,6 +161,7 @@ class FeatureQualityEngine(Engine):
                                     column=a,
                                     fix_snippet=f"df = df.drop(columns=[{b!r}])",
                                     metrics={"corr": round(float(val), 4), "with": b},
+                                    category="modeling_warning",
                                 )
                             )
         except Exception:

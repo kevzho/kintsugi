@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Check, ChevronDown, Copy } from "lucide-react";
+import { Check, ChevronDown, Copy, Wand2 } from "lucide-react";
 import type { Finding } from "@/lib/types";
 import { SEVERITY_COLORS } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
@@ -24,7 +24,7 @@ export function FindingCard({ finding, defaultOpen = false }: { finding: Finding
   };
 
   return (
-    <div className={cn("rounded-2xl border bg-card shadow-sm ring-1 ring-transparent transition", open && colors.ring)}>
+    <div className={cn("rounded-lg border bg-card shadow-sm ring-1 ring-transparent transition", open && colors.ring)}>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -35,7 +35,7 @@ export function FindingCard({ finding, defaultOpen = false }: { finding: Finding
           <div className="flex flex-wrap items-center gap-2">
             <Badge className={colors.badge}>{finding.severity.toUpperCase()}</Badge>
             {finding.column && (
-              <span className="rounded-md bg-muted px-2 py-0.5 font-mono text-xs text-muted-foreground">
+              <span className="rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground">
                 {finding.column}
               </span>
             )}
@@ -52,26 +52,31 @@ export function FindingCard({ finding, defaultOpen = false }: { finding: Finding
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Detail</p>
             <p className="mt-1 text-sm text-foreground/90">{finding.detail}</p>
           </div>
-          <div className={cn("rounded-xl border-l-4 bg-muted/50 p-3", colors.text.replace("text", "border"))}>
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Why it matters</p>
+          <div className="rounded-lg border bg-muted/40 p-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Impact</p>
             <p className="mt-1 text-sm text-foreground/90">{finding.impact}</p>
           </div>
           {finding.fix_snippet && (
-            <div className="relative">
-              <div className="flex items-center justify-between rounded-t-xl bg-slate-900 px-3 py-1.5">
-                <span className="text-xs font-medium text-slate-300">fix</span>
-                <button
-                  type="button"
-                  onClick={copy}
-                  className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-slate-300 hover:bg-slate-800"
-                >
-                  {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                  {copied ? "Copied" : "Copy"}
-                </button>
+            <div className="flex flex-col gap-3 rounded-lg border bg-background p-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-3">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border bg-background text-foreground">
+                  <Wand2 className="h-4 w-4" />
+                </span>
+                <div>
+                  <p className="text-sm font-medium text-foreground">Fix available</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Copy the fix when you are ready to apply it.
+                  </p>
+                </div>
               </div>
-              <pre className="overflow-x-auto rounded-b-xl bg-slate-950 p-3 text-xs leading-relaxed text-slate-100">
-                <code>{finding.fix_snippet}</code>
-              </pre>
+              <button
+                type="button"
+                onClick={copy}
+                className="inline-flex h-9 items-center justify-center gap-2 rounded-md border bg-card px-3 text-sm font-medium text-foreground shadow-sm transition hover:bg-accent hover:text-accent-foreground"
+              >
+                {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                {copied ? "Copied" : "Copy fix"}
+              </button>
             </div>
           )}
         </div>

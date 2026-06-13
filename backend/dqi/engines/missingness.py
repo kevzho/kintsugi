@@ -21,6 +21,23 @@ def _severity_for_null_rate(rate: float) -> Optional[Severity]:
     return None
 
 
+def _time_period_series(df: pd.DataFrame, schema: dict) -> Optional[tuple[str, pd.Series]]:
+    cols = schema.get("columns", {})
+    for col, prof in cols.items():
+        name = str(col).lower()
+        dtype = prof.get("dtype_inferred")
+        if dtype == "datetime" or any(token in name for token in ("year", "date", "time", "period")):
+            raw = df[col]
+            if dtype == "datetime" or any(token in name for token in ("date", "time", "period")):
+                parsed = pd.to_datetime(raw, errors="coerce", format="mixed")
+                if parsed.notna().sum() >= 10:
+                    return col, parsed.dt.year.astype("float")
+            numeric = pd.to_numeric(raw, errors="coerce")
+            if numeric.notna().sum() >= 10 and numeric.nunique(dropna=True) >= 2:
+                return col, numeric
+    return None
+
+
 class MissingnessEngine(Engine):
     name = "missingness"
 
@@ -64,6 +81,56 @@ class MissingnessEngine(Engine):
                     metrics={"null_rate": round(rate, 4), "n_missing": int(rate * n)},
                 )
             )
+
+        # Missing values concentrated in a time period or historical regime.
+        # This is distinct from random row-level missingness and should be
+        # handled with time-aware imputation or regime flags.
+        try:
+            period = _time_period_series(df, schema)
+            if period is not None:
+                period_col, periods = period
+                for col in df.columns:
+                    if col == period_col:
+                        continue
+                    missing = df[col].isna()
+                    n_missing = int(missing.sum())
+                    if n_missing < 10:
+                        continue
+                    missing_periods = periods[missing & periods.notna()]
+                    if missing_periods.empty:
+                        continue
+                    shares = missing_periods.value_counts(normalize=True)
+                    top_period = shares.index[0]
+                    top_share = float(shares.iloc[0])
+                    if top_share >= config.STRUCTURAL_MISSINGNESS_TIME_CONCENTRATION:
+                        findings.append(
+                            Finding(
+                                engine=self.name,
+                                code="STRUCTURAL_MISSINGNESS_TIME_REGIME",
+                                severity=Severity.MEDIUM,
+                                title=f"'{col}' is mostly missing in one time period",
+                                detail=(
+                                    f"{top_share*100:.1f}% of missing '{col}' values occur where "
+                                    f"'{period_col}' is {top_period:g}."
+                                ),
+                                impact=(
+                                    "This looks like historical or regime-based missingness, not random noise. "
+                                    "Use a period flag or time-aware imputation so the model can learn the gap."
+                                ),
+                                column=col,
+                                fix_snippet=(
+                                    f"df[{(str(col) + '_missing')!r}] = df[{col!r}].isna().astype(int)\n"
+                                    f"# Impute within {period_col!r} groups after reviewing the historical gap"
+                                ),
+                                metrics={
+                                    "period_column": period_col,
+                                    "period": float(top_period),
+                                    "missing_share_in_period": round(top_share, 3),
+                                },
+                            )
+                        )
+        except Exception:
+            pass
 
         # Co-missing groups: correlated isna() masks (structural missingness).
         try:

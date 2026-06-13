@@ -258,11 +258,11 @@ class LeakageEngine(Engine):
                         )
                     )
 
-        # Heuristic 4: id-like column used as a feature -> HIGH (memorization).
+        # Heuristic 4: near-unique confirmed identifier used as a feature -> HIGH (memorization).
         for c, p in cols.items():
             if c == target or c in flagged:
                 continue
-            if p.get("is_id_like"):
+            if p.get("is_id_like") and p.get("cardinality_ratio", 0.0) >= config.ID_CARDINALITY_RATIO:
                 findings.append(
                     Finding(
                         engine=self.name,

@@ -47,6 +47,7 @@ class CorrelationEngine(Engine):
                 column=None,
                 fix_snippet=None,
                 metrics={"matrix": matrix, "labels": labels},
+                category="modeling_warning",
             )
         )
 
@@ -76,6 +77,7 @@ class CorrelationEngine(Engine):
                             column=a,
                             fix_snippet=f"df = df.drop(columns=[{b!r}])  # keep one of the pair",
                             metrics={"corr": round(val, 4), "with": b},
+                            category="modeling_warning",
                         )
                     )
         return findings

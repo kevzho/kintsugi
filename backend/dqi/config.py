@@ -18,6 +18,15 @@ SAMPLE_RANDOM_STATE = 42
 # ---------------------------------------------------------------------------
 # A column is "id-like" if its distinct ratio exceeds this (near-unique).
 ID_CARDINALITY_RATIO = 0.95
+MEASUREMENT_NAME_PATTERN = (
+    r"(count|rate|population|income|gdp|crime|age|density|percent|percentage|"
+    r"score|value|amount|price|cost|revenue|bytes|packets?|duration|total|"
+    r"violent|property|assault|burglary|theft|murder|robbery)"
+)
+IDENTIFIER_NAME_PATTERN = (
+    r"(^id$|_id$|id_|uuid|guid|\\bkey\\b|account|customer|transaction|"
+    r"order|user_?id|client_?id|session_?id|device_?id)"
+)
 # A categorical is "high cardinality" above this many distinct values.
 HIGH_CARDINALITY_ABS = 50
 HIGH_CARDINALITY_RATIO = 0.5
@@ -29,6 +38,7 @@ MISSING_CRITICAL = 0.60
 MISSING_HIGH = 0.20
 MISSING_MEDIUM = 0.05
 COMISSING_CORR = 0.85   # correlation of null-masks indicating structural missingness
+STRUCTURAL_MISSINGNESS_TIME_CONCENTRATION = 0.80
 
 # ---------------------------------------------------------------------------
 # Duplicates
@@ -48,6 +58,13 @@ OUTLIER_IQR_K = 1.5
 OUTLIER_Z = 3.5                 # robust z (median/MAD)
 OUTLIER_MEDIUM_RATE = 0.05
 OUTLIER_HIGH_RATE = 0.15
+OUTLIER_MAX_SCORE_PENALTY = 5.0
+OUTLIER_FINDING_MAX_SCORE_PENALTY = 2.0
+HEAVY_TAIL_FIELD_PATTERN = (
+    r"(src_?bytes|dst_?bytes|bytes|packet|packets|packet_?count|"
+    r"failed_?logins?|login_?attempts?|attempts?|duration|flow_?duration|"
+    r"payload|traffic|bandwidth)"
+)
 
 # ---------------------------------------------------------------------------
 # Leakage heuristics

@@ -48,6 +48,7 @@ class Finding:
     fix_snippet: Optional[str] = None    # copy-pasteable pandas fix
     metrics: dict[str, Any] = field(default_factory=dict)  # numbers for charts / LLM
     score_penalty: float = 0.0           # filled by scoring layer
+    category: str = "data_integrity"     # or "modeling_warning"
 
     def to_dict(self) -> dict[str, Any]:
         d = asdict(self)
@@ -70,6 +71,7 @@ class Report:
     schema: dict[str, Any]               # column profiles
     fingerprint: str                     # cache key
     severity_counts: dict[str, int] = field(default_factory=dict)
+    modeling_warnings: list[Finding] = field(default_factory=list)
     exec_summary: str = ""               # filled by AI layer
     recommendations: list[str] = field(default_factory=list)  # AI-enriched, ordered
     ai_available: bool = True            # False if Groq was unavailable (graceful degradation)
@@ -78,4 +80,5 @@ class Report:
     def to_dict(self) -> dict[str, Any]:
         d = asdict(self)
         d["findings"] = [f.to_dict() for f in self.findings]
+        d["modeling_warnings"] = [f.to_dict() for f in self.modeling_warnings]
         return d
