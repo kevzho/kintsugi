@@ -39,7 +39,19 @@ function StatTile({ icon, label, value }: { icon: React.ReactNode; label: string
   );
 }
 
-function ScoreTile({ title, score, grade }: { title: string; score: number; grade: string }) {
+function ScoreTile({
+  title,
+  score,
+  grade,
+  confidence,
+  reason,
+}: {
+  title: string;
+  score: number;
+  grade: string;
+  confidence: string;
+  reason: string;
+}) {
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -51,6 +63,8 @@ function ScoreTile({ title, score, grade }: { title: string; score: number; grad
           <span className="pb-1 text-sm text-muted-foreground">/100</span>
           <Badge className="mb-1 ml-auto border-border bg-muted text-foreground">{grade}</Badge>
         </div>
+        <p className="mt-3 text-xs capitalize text-muted-foreground">Confidence: {confidence}</p>
+        <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">{reason}</p>
       </CardContent>
     </Card>
   );
@@ -69,9 +83,27 @@ export function Results({ report }: { report: Report }) {
     <div className="space-y-6">
       {/* Score + stats */}
       <div className="grid gap-4 lg:grid-cols-3">
-        <ScoreTile title="Data Integrity" score={report.integrity_score} grade={report.integrity_grade} />
-        <ScoreTile title="Model Readiness" score={report.readiness_score} grade={report.readiness_grade} />
-        <ScoreTile title="Overall" score={report.overall_score} grade={report.overall_grade} />
+        <ScoreTile
+          title="Data Integrity"
+          score={report.integrity_score}
+          grade={report.integrity_grade}
+          confidence={report.integrity_confidence}
+          reason={report.integrity_confidence_reason}
+        />
+        <ScoreTile
+          title="Model Readiness"
+          score={report.readiness_score}
+          grade={report.readiness_grade}
+          confidence={report.readiness_confidence}
+          reason={report.readiness_confidence_reason}
+        />
+        <ScoreTile
+          title="Overall"
+          score={report.overall_score}
+          grade={report.overall_grade}
+          confidence={report.overall_confidence}
+          reason={report.overall_confidence_reason}
+        />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">

@@ -110,6 +110,10 @@ def test_score_bounds_and_grade(clean_df):
     assert 0.0 <= report.integrity_score <= 100.0
     assert 0.0 <= report.readiness_score <= 100.0
     assert report.overall_score == report.health_score
+    assert report.integrity_confidence in {"low", "medium", "high"}
+    assert report.readiness_confidence in {"low", "medium", "high"}
+    assert report.overall_confidence in {"low", "medium", "high"}
+    assert report.integrity_confidence_reason
 
 
 def test_works_with_groq_off(messy_df, monkeypatch):
@@ -183,6 +187,8 @@ def test_numeric_score_is_independent_of_groq_response(monkeypatch, messy_df):
     assert with_groq.grade == no_groq.grade
     assert with_groq.integrity_score == no_groq.integrity_score
     assert with_groq.readiness_score == no_groq.readiness_score
+    assert with_groq.integrity_confidence == no_groq.integrity_confidence
+    assert with_groq.readiness_confidence == no_groq.readiness_confidence
 
 
 def test_outlier_penalty_cap_even_with_many_heavy_tailed_columns(monkeypatch):
@@ -273,3 +279,5 @@ def test_quikr_messy_numeric_columns_stay_low(monkeypatch):
     assert any(f.engine == "duplicates" for f in report.findings)
     assert 30 <= report.integrity_score <= 55
     assert 35 <= report.overall_score <= 60
+    assert report.integrity_confidence == "high"
+    assert "finding" in report.integrity_confidence_reason

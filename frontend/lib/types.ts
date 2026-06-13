@@ -55,6 +55,12 @@ export interface Report {
   overall_score: number;
   overall_grade: string;
   verdict: string;
+  integrity_confidence: string;
+  integrity_confidence_reason: string;
+  readiness_confidence: string;
+  readiness_confidence_reason: string;
+  overall_confidence: string;
+  overall_confidence_reason: string;
   dataset_type: string;
   findings: Finding[];
   modeling_warnings: Finding[];

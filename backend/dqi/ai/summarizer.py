@@ -49,6 +49,11 @@ def build_context(report: "Report") -> dict:
         "overall_score": report.overall_score,
         "overall_grade": report.overall_grade,
         "verdict": report.verdict,
+        "score_confidence": {
+            "integrity": report.integrity_confidence,
+            "readiness": report.readiness_confidence,
+            "overall": report.overall_confidence,
+        },
         "dataset_type": report.dataset_type,
         "target_column": report.target_column,
         "schema_summary": {
@@ -103,8 +108,9 @@ def _deterministic_summary(report: "Report") -> tuple[str, list[str]]:
     headline = lead.title if lead else "no material issues detected"
     summary = (
         f"'{report.dataset_name}' has integrity {report.integrity_score}/100 "
-        f"({report.integrity_grade}) and model readiness {report.readiness_score}/100 "
-        f"({report.readiness_grade}) across {report.n_rows} rows and {report.n_cols} columns. "
+        f"({report.integrity_grade}, {report.integrity_confidence} confidence) and model readiness "
+        f"{report.readiness_score}/100 ({report.readiness_grade}, {report.readiness_confidence} confidence) "
+        f"across {report.n_rows} rows and {report.n_cols} columns. "
         f"Overall verdict: {report.verdict}. Found {n_crit} critical and {n_high} high-severity issues; "
         f"the top concern is {headline}. This dataset is {fit}."
     )

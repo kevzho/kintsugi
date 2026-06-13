@@ -83,7 +83,7 @@ def analyze(df: pd.DataFrame, dataset_name: str, target: Optional[str] = None) -
     for engine in ALL_ENGINES:
         findings.extend(engine.safe_run(work, schema, target))
 
-    scores = score_report(findings)
+    scores = score_report(findings, n_rows=len(work), sampled=sampled)
     fp = fingerprint(schema, [f.code for f in findings], shape=(n_rows, n_cols))
 
     report = Report(
@@ -102,6 +102,12 @@ def analyze(df: pd.DataFrame, dataset_name: str, target: Optional[str] = None) -
         overall_score=scores.overall_score,
         overall_grade=scores.overall_grade,
         verdict=scores.verdict,
+        integrity_confidence=scores.integrity_confidence,
+        integrity_confidence_reason=scores.integrity_confidence_reason,
+        readiness_confidence=scores.readiness_confidence,
+        readiness_confidence_reason=scores.readiness_confidence_reason,
+        overall_confidence=scores.overall_confidence,
+        overall_confidence_reason=scores.overall_confidence_reason,
         dataset_type=dataset_type,
         findings=findings,
         modeling_warnings=[f for f in findings if f.category == "modeling_warning"],

@@ -4,9 +4,9 @@ export function reportToMarkdown(r: Report): string {
   const lines: string[] = [];
   lines.push(`# Data Quality IQ — ${r.dataset_name}`);
   lines.push("");
-  lines.push(`**Data Integrity:** ${r.integrity_score}/100 (Grade ${r.integrity_grade})`);
-  lines.push(`**Model Readiness:** ${r.readiness_score}/100 (Grade ${r.readiness_grade})`);
-  lines.push(`**Overall:** ${r.overall_score}/100 (Grade ${r.overall_grade})`);
+  lines.push(`**Data Integrity:** ${r.integrity_score}/100 (Grade ${r.integrity_grade}, confidence: ${r.integrity_confidence})`);
+  lines.push(`**Model Readiness:** ${r.readiness_score}/100 (Grade ${r.readiness_grade}, confidence: ${r.readiness_confidence})`);
+  lines.push(`**Overall:** ${r.overall_score}/100 (Grade ${r.overall_grade}, confidence: ${r.overall_confidence})`);
   lines.push(`**Verdict:** ${r.verdict}`);
   lines.push(`**Dataset Type:** ${r.dataset_type}`);
   lines.push(`**Rows:** ${r.n_rows.toLocaleString()} | **Columns:** ${r.n_cols}`);

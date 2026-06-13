@@ -76,6 +76,12 @@ class Report:
     overall_score: float
     overall_grade: str
     verdict: str
+    integrity_confidence: str
+    integrity_confidence_reason: str
+    readiness_confidence: str
+    readiness_confidence_reason: str
+    overall_confidence: str
+    overall_confidence_reason: str
     dataset_type: str
     findings: list[Finding]
     schema: dict[str, Any]               # column profiles

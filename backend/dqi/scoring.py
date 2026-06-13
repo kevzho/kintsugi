@@ -21,6 +21,12 @@ class ScoreResult:
     overall_score: float
     overall_grade: str
     verdict: str
+    integrity_confidence: str
+    integrity_confidence_reason: str
+    readiness_confidence: str
+    readiness_confidence_reason: str
+    overall_confidence: str
+    overall_confidence_reason: str
     severity_counts: dict[str, int]
 
 
@@ -106,7 +112,46 @@ def _verdict(integrity: float, readiness: float, overall: float, findings: list[
     return "Review before modeling"
 
 
-def score_report(findings: list[Finding]) -> ScoreResult:
+def _confidence(
+    *,
+    score_kind: str,
+    n_rows: int,
+    sampled: bool,
+    relevant: list[Finding],
+    all_findings: list[Finding],
+) -> tuple[str, str]:
+    evidence = [f for f in relevant if f.severity != Severity.INFO]
+    critical = [f for f in evidence if f.severity == Severity.CRITICAL]
+    high = [f for f in evidence if f.severity == Severity.HIGH]
+
+    if critical or high or len(evidence) >= 3:
+        level = "high"
+    elif n_rows >= 200 and len(all_findings) >= 1:
+        level = "medium"
+    else:
+        level = "medium" if n_rows >= 100 else "low"
+
+    if sampled:
+        level = "medium" if level == "high" else level
+
+    if critical:
+        reason = f"{len(critical)} critical finding{'s' if len(critical) != 1 else ''} with direct evidence."
+    elif high:
+        reason = f"{len(high)} high-severity finding{'s' if len(high) != 1 else ''} with measurable evidence."
+    elif len(evidence) >= 3:
+        reason = f"{len(evidence)} {score_kind} findings point in the same direction."
+    elif n_rows < 100:
+        reason = "Small sample size limits confidence in the score."
+    elif sampled:
+        reason = "Score is based on a deterministic sample of a larger file."
+    elif evidence:
+        reason = "A small number of measurable findings support the score."
+    else:
+        reason = "No major findings were detected, so confidence is based on schema and sample size."
+    return level, reason
+
+
+def score_report(findings: list[Finding], *, n_rows: int = 0, sampled: bool = False) -> ScoreResult:
     integrity_by_engine: dict[str, float] = defaultdict(float)
     readiness_by_engine: dict[str, float] = defaultdict(float)
     severity_counts: dict[str, int] = {s.value: 0 for s in Severity}
@@ -148,6 +193,31 @@ def score_report(findings: list[Finding]) -> ScoreResult:
         overall_score = min(overall_score, 70)
 
     overall_score = float(overall_score)
+    integrity_findings = [f for f in findings if f.category != "modeling_warning"]
+    readiness_findings = [f for f in findings if f.category == "modeling_warning" or f.readiness_penalty > 0]
+    integrity_confidence, integrity_reason = _confidence(
+        score_kind="integrity",
+        n_rows=n_rows,
+        sampled=sampled,
+        relevant=integrity_findings,
+        all_findings=findings,
+    )
+    readiness_confidence, readiness_reason = _confidence(
+        score_kind="model-readiness",
+        n_rows=n_rows,
+        sampled=sampled,
+        relevant=readiness_findings,
+        all_findings=findings,
+    )
+    if integrity_confidence == readiness_confidence:
+        overall_confidence = integrity_confidence
+    elif "low" in (integrity_confidence, readiness_confidence):
+        overall_confidence = "medium"
+    else:
+        overall_confidence = "medium"
+    overall_reason = (
+        f"Integrity confidence is {integrity_confidence}; readiness confidence is {readiness_confidence}."
+    )
     return ScoreResult(
         integrity_score=integrity_score,
         integrity_grade=_grade(integrity_score),
@@ -156,5 +226,11 @@ def score_report(findings: list[Finding]) -> ScoreResult:
         overall_score=overall_score,
         overall_grade=_overall_grade(overall_score),
         verdict=_verdict(integrity_score, readiness_score, overall_score, findings),
+        integrity_confidence=integrity_confidence,
+        integrity_confidence_reason=integrity_reason,
+        readiness_confidence=readiness_confidence,
+        readiness_confidence_reason=readiness_reason,
+        overall_confidence=overall_confidence,
+        overall_confidence_reason=overall_reason,
         severity_counts=severity_counts,
     )
