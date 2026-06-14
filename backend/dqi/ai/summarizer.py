@@ -59,6 +59,8 @@ def build_context(report: "Report") -> dict:
         },
         "dataset_type": report.dataset_type,
         "target_column": report.target_column,
+        "possible_targets": report.possible_targets,
+        "supervised_ml_readiness": report.supervised_ml_readiness,
         "schema_summary": {
             "n_numeric": schema.get("n_numeric", 0),
             "n_categorical": schema.get("n_categorical", 0),
@@ -162,7 +164,12 @@ def _deterministic_summary(report: "Report") -> tuple[str, list[Recommendation]]
 
     lead = findings[0] if findings else None
     headline = lead.title if lead else "no material issues detected"
-    if report.dataset_purpose in {"Not suitable for supervised ML", "EDA-only / visualization dataset"}:
+    if report.supervised_ml_readiness == "N/A":
+        purpose_sentence = (
+            "Supervised ML readiness was not scored because no target column was selected. "
+            "Use this report for data integrity review and dataset-purpose assessment."
+        )
+    elif report.dataset_purpose in {"Not suitable for supervised ML", "EDA-only / visualization dataset"}:
         purpose_sentence = (
             "It is structurally clean enough to inspect, but not suitable for reliable "
             "supervised machine learning; use it for exploratory analysis, visualization, "

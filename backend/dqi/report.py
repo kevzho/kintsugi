@@ -87,6 +87,7 @@ class Report:
     n_rows_analyzed: int                 # may be < n_rows if sampled
     sampled: bool
     target_column: Optional[str]
+    possible_targets: list[str]
     health_score: float                  # 0-100
     grade: str                           # A-F
     integrity_score: float
@@ -104,6 +105,7 @@ class Report:
     overall_confidence_reason: str
     dataset_type: str
     dataset_purpose: str
+    supervised_ml_readiness: str
     findings: list[Finding]
     schema: dict[str, Any]               # column profiles
     fingerprint: str                     # cache key

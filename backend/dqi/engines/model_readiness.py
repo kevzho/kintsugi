@@ -38,9 +38,28 @@ class ModelReadinessEngine(Engine):
             return findings
 
         cols = schema.get("columns", {})
+        dataset_type = schema.get("dataset_type", "unknown")
+        target_provided = bool(schema.get("target_provided", target is not None))
         feature_cols = [c for c in df.columns if c != target]
         n_features = max(len(feature_cols), 1)
         rows_per_feature = n_rows / n_features
+
+        if not target_provided:
+            findings.append(
+                Finding(
+                    engine=self.name,
+                    code="NO_TARGET_SUPERVISED_READINESS_NA",
+                    severity=Severity.INFO,
+                    title="No target column selected",
+                    detail=(
+                        "Supervised ML readiness requires a target column. Since no target was selected, "
+                        "this report focuses on data integrity and likely dataset use cases."
+                    ),
+                    impact="Leakage, target support, class imbalance, and split feasibility are not scored until a target is selected.",
+                    metrics={"readiness_applicability": "N/A", "possible_targets": schema.get("possible_targets", [])},
+                    category="modeling_warning",
+                )
+            )
 
         sample_band = self._sample_size_finding(n_rows)
         if sample_band:
@@ -51,6 +70,7 @@ class ModelReadinessEngine(Engine):
             findings.append(rpf_finding)
 
         high_card_count = 0
+        clustered_high_card: list[tuple[str, int, float]] = []
         for col in feature_cols:
             prof = cols.get(col, {})
             dtype = prof.get("dtype_inferred")
@@ -61,6 +81,9 @@ class ModelReadinessEngine(Engine):
             if unique_ratio < 0.5:
                 continue
             high_card_count += 1
+            if not target_provided and dataset_type == "historical_archive":
+                clustered_high_card.append((str(col), nunique, unique_ratio))
+                continue
             if unique_ratio >= 0.9:
                 sev = Severity.HIGH
                 penalty = 8.0
@@ -103,9 +126,30 @@ class ModelReadinessEngine(Engine):
                 )
             )
 
+        if clustered_high_card:
+            columns = [c for c, _, _ in clustered_high_card]
+            findings.append(
+                Finding(
+                    engine=self.name,
+                    code="NEAR_UNIQUE_FEATURE_CLUSTER",
+                    severity=Severity.LOW,
+                    title="Near-unique feature cluster",
+                    detail=(
+                        "Several categorical fields are near-unique in this small archive: "
+                        f"{', '.join(columns)}."
+                    ),
+                    impact=(
+                        "These columns are useful for lookup, filtering, and historical comparison, "
+                        "but they do not provide enough repeated examples for reliable supervised learning."
+                    ),
+                    metrics={"columns": columns, "readiness_penalty": 6.0},
+                    category="modeling_warning",
+                )
+            )
+
         weak_target = False
         leakage_finding = None
-        if target and target in df.columns:
+        if target_provided and target and target in df.columns:
             weak_target = self._add_target_support_findings(df, schema, target, findings)
             leakage_finding = self._post_outcome_leakage_finding(df, target)
             if leakage_finding:

@@ -21,6 +21,8 @@ class CorrelationEngine(Engine):
     def run(self, df: pd.DataFrame, schema: dict, target: Optional[str] = None) -> list[Finding]:
         findings: list[Finding] = []
         cols = schema.get("columns", {})
+        dataset_type = schema.get("dataset_type", "unknown")
+        target_provided = bool(schema.get("target_provided", target is not None))
         num_cols = [
             c for c, p in cols.items()
             if p.get("dtype_inferred") == "numeric" and not p.get("is_id_like")
@@ -62,7 +64,18 @@ class CorrelationEngine(Engine):
                     if pair in seen:
                         continue
                     seen.add(pair)
-                    sev = Severity.MEDIUM if val >= config.NEAR_DUPLICATE_CORR else Severity.INFO
+                    if dataset_type == "historical_archive" and not target_provided:
+                        sev = Severity.INFO
+                    else:
+                        sev = Severity.MEDIUM if val >= config.NEAR_DUPLICATE_CORR else Severity.INFO
+                    impact = (
+                        "This appears to be a historical trend or archive structure. It is useful context for EDA, not a data-integrity failure."
+                        if dataset_type == "historical_archive" and not target_provided
+                        else (
+                            "Collinear features inflate variance of linear-model coefficients "
+                            "and add little independent signal; consider dropping one."
+                        )
+                    )
                     findings.append(
                         Finding(
                             engine=self.name,
@@ -70,12 +83,9 @@ class CorrelationEngine(Engine):
                             severity=sev,
                             title=f"'{a}' and '{b}' are strongly correlated (|r|={val:.2f})",
                             detail=f"Pearson |r|={val:.3f} between '{a}' and '{b}'.",
-                            impact=(
-                                "Collinear features inflate variance of linear-model coefficients "
-                                "and add little independent signal; consider dropping one."
-                            ),
+                            impact=impact,
                             column=a,
-                            fix_snippet=f"df = df.drop(columns=[{b!r}])  # keep one of the pair",
+                            fix_snippet=None if dataset_type == "historical_archive" and not target_provided else f"df = df.drop(columns=[{b!r}])  # keep one of the pair",
                             metrics={"corr": round(val, 4), "with": b},
                             category="modeling_warning",
                         )

@@ -23,6 +23,17 @@ from ..report import Finding, Severity
 from .base import Engine
 
 _NAME_RE = re.compile(config.LEAKAGE_NAME_PATTERN, re.IGNORECASE)
+_LEAKAGE_EVIDENCE_RE = re.compile(
+    r"(final|after|outcome|result|status|post|label|target|actual|realized|"
+    r"cancellation|churn_date|revenue_after|default_status|diagnosis_confirmed)",
+    re.IGNORECASE,
+)
+
+
+def _has_leakage_evidence(feature: str, target: str) -> bool:
+    name = str(feature)
+    target_name = str(target)
+    return bool(_LEAKAGE_EVIDENCE_RE.search(name)) or bool(_LEAKAGE_EVIDENCE_RE.search(target_name) and _NAME_RE.search(name))
 
 
 def _encode(series: pd.Series, is_numeric: bool) -> np.ndarray:
@@ -181,20 +192,23 @@ class LeakageEngine(Engine):
                 if exact or mono:
                     flagged.add(c)
                     kind = "identical to" if exact else "a monotonic transform of"
+                    plausible = _has_leakage_evidence(c, target)
                     findings.append(
                         Finding(
                             engine=self.name,
-                            code="TARGET_LEAKAGE_TARGET_COPY",
-                            severity=Severity.CRITICAL,
-                            title=f"'{c}' is {kind} the target",
+                            code="TARGET_LEAKAGE_TARGET_COPY" if plausible else "TARGET_PROXY_RISK",
+                            severity=Severity.CRITICAL if plausible else Severity.MEDIUM,
+                            title=f"'{c}' is {kind} the target" if plausible else f"'{c}' is a target proxy risk",
                             detail=f"'{c}' reproduces '{target}' ({'exact match' if exact else 'spearman~1.0'}).",
                             impact=(
-                                "This column reproduces the answer. A model trained on it will look "
-                                "perfect offline and collapse in production where it isn't available."
+                                "This column reproduces the answer and appears to be post-outcome."
+                                if plausible else
+                                "This column has target-like association, but no timing or semantic leakage evidence was found. Review whether it is a legitimate feature."
                             ),
                             column=c,
                             fix_snippet=f"df = df.drop(columns=[{c!r}])",
                             metrics={"mi": round(mi_scores.get(c, 0.0), 4), "corr": round(corr_scores.get(c, 0.0), 4)},
+                            category="data_integrity" if plausible else "modeling_warning",
                         )
                     )
             except Exception:
@@ -208,24 +222,26 @@ class LeakageEngine(Engine):
             corr = corr_scores.get(c, 0.0)
             if mi >= config.LEAKAGE_MI_CRITICAL or corr >= config.LEAKAGE_MI_CRITICAL:
                 flagged.add(c)
+                plausible = _has_leakage_evidence(c, target)
                 findings.append(
                     Finding(
                         engine=self.name,
-                        code="TARGET_LEAKAGE_PERFECT_PREDICTOR",
-                        severity=Severity.CRITICAL,
-                        title=f"'{c}' almost perfectly predicts the target",
+                        code="TARGET_LEAKAGE_PERFECT_PREDICTOR" if plausible else "TARGET_PROXY_RISK",
+                        severity=Severity.CRITICAL if plausible else Severity.MEDIUM,
+                        title=f"'{c}' almost perfectly predicts the target" if plausible else f"'{c}' is highly associated with the target",
                         detail=(
                             f"Normalized MI={mi:.3f}, |corr|={corr:.3f} between '{c}' and "
-                            f"'{target}' — implausibly high for a legitimate feature."
+                            f"'{target}'."
                         ),
                         impact=(
-                            "Near-perfect single-feature predictive power is the signature of "
-                            "leakage: the column likely encodes the outcome or is recorded after it. "
-                            "Offline metrics will not reflect production performance."
+                            "Near-perfect single-feature predictive power plus timing/name evidence suggests leakage."
+                            if plausible else
+                            "High association alone is not enough to call leakage. Treat this as a target proxy risk and review feature timing."
                         ),
                         column=c,
-                        fix_snippet=f"# Confirm timing, then drop\ndf = df.drop(columns=[{c!r}])",
+                        fix_snippet=f"# Confirm timing and availability before training\n# df = df.drop(columns=[{c!r}])",
                         metrics={"mi": round(mi, 4), "corr": round(corr, 4)},
+                        category="data_integrity" if plausible else "modeling_warning",
                     )
                 )
 
@@ -233,7 +249,7 @@ class LeakageEngine(Engine):
         for c in feature_cols:
             if c in flagged:
                 continue
-            if _NAME_RE.search(c):
+            if _NAME_RE.search(c) and _has_leakage_evidence(c, target):
                 corr = corr_scores.get(c, 0.0)
                 mi = mi_scores.get(c, 0.0)
                 if corr >= config.LEAKAGE_CORR_SUSPICIOUS or mi >= config.LEAKAGE_CORR_SUSPICIOUS:

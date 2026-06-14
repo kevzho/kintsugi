@@ -19,6 +19,8 @@ class FeatureQualityEngine(Engine):
     def run(self, df: pd.DataFrame, schema: dict, target: Optional[str] = None) -> list[Finding]:
         findings: list[Finding] = []
         cols = schema.get("columns", {})
+        dataset_type = schema.get("dataset_type", "unknown")
+        target_provided = bool(schema.get("target_provided", target is not None))
         n = len(df)
         if n == 0:
             return findings
@@ -69,6 +71,8 @@ class FeatureQualityEngine(Engine):
 
             # High-cardinality categoricals.
             if dtype in ("categorical", "text") and prof.get("is_high_cardinality") and not prof.get("is_id_like"):
+                if dataset_type == "historical_archive" and not target_provided:
+                    continue
                 findings.append(
                     Finding(
                         engine=self.name,

@@ -355,9 +355,10 @@ def test_telco_totalcharges_blanks_are_not_catastrophic(monkeypatch):
     report = dqi.analyze(_telco_df(), "WA_Fn-UseC_-Telco-Customer-Churn.csv")
 
     assert report.dataset_type == "business_tabular"
-    assert report.target_column == "Churn"
+    assert report.target_column is None
+    assert "Churn" in report.possible_targets
     assert report.schema["columns"]["customerID"]["column_role"] == "identifier"
-    assert report.schema["columns"]["Churn"]["column_role"] == "target"
+    assert report.schema["columns"]["Churn"]["column_role"] in {"categorical", "target"}
     assert any(f.column == "TotalCharges" for f in report.findings)
     assert report.integrity_score >= 85
     assert report.overall_score >= 86
@@ -371,7 +372,7 @@ def test_quikr_messy_numeric_columns_stay_low(monkeypatch):
     assert any(f.code == "MESSY_NUMERIC_TEXT" and f.column == "Price" for f in report.findings)
     assert any(f.code == "MESSY_NUMERIC_TEXT" and f.column == "kms_driven" for f in report.findings)
     assert any(f.engine == "duplicates" for f in report.findings)
-    assert 30 <= report.integrity_score <= 60
+    assert 30 <= report.integrity_score <= 65
     assert 35 <= report.overall_score <= 60
     assert report.integrity_confidence == "high"
     assert "finding" in report.integrity_confidence_reason

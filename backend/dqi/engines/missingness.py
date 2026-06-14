@@ -46,13 +46,64 @@ class MissingnessEngine(Engine):
         n = len(df)
         if n == 0:
             return findings
+        dataset_type = schema.get("dataset_type", "unknown")
+        cols = schema.get("columns", {})
+        clustered_cols: set[str] = set()
+
+        try:
+            cols_with_nulls = [c for c in df.columns if 0 < df[c].isna().mean() < 1]
+            if len(cols_with_nulls) >= 3:
+                mask = df[cols_with_nulls].isna().astype(int)
+                corr = mask.corr()
+                groups: list[set[str]] = []
+                for col in cols_with_nulls:
+                    group = {col}
+                    for other in cols_with_nulls:
+                        if col != other and pd.notna(corr.loc[col, other]) and corr.loc[col, other] >= config.COMISSING_CORR:
+                            group.add(other)
+                    if len(group) >= 3 and not any(group <= existing for existing in groups):
+                        groups.append(group)
+                if groups:
+                    group = sorted(max(groups, key=len))
+                    clustered_cols = set(group)
+                    fixture_like = dataset_type == "fixture_schedule"
+                    findings.append(
+                        Finding(
+                            engine=self.name,
+                            code="STRUCTURAL_MISSINGNESS_CLUSTER",
+                            severity=Severity.LOW if fixture_like else Severity.MEDIUM,
+                            title="Structural missingness cluster",
+                            detail=(
+                                "These fields go missing together: "
+                                f"{', '.join(group)}."
+                            ),
+                            impact=(
+                                "These fields likely represent an unresolved state, such as future "
+                                "knockout-stage participants. Treat this as structural missingness, "
+                                "not random corruption."
+                            ),
+                            column=None,
+                            fix_snippet=(
+                                "for col in unresolved_cols:\n"
+                                "    df[col] = df[col].fillna('TBD')\n"
+                                "# Or keep nulls and add an is_unresolved flag."
+                            ),
+                            metrics={"columns": group, "structural": True},
+                        )
+                    )
+        except Exception:
+            clustered_cols = set()
 
         for col in df.columns:
+            if col in clustered_cols:
+                continue
             rate = float(df[col].isna().mean())
             sev = _severity_for_null_rate(rate)
             if sev is None:
                 continue
             pct = round(rate * 100, 1)
+            prof = cols.get(col, {})
+            dtype = prof.get("dtype_inferred")
             if rate >= config.MISSING_CRITICAL:
                 fix = f"# Mostly empty — usually safe to drop\ndf = df.drop(columns=[{col!r}])"
                 impact = (
@@ -60,10 +111,17 @@ class MissingnessEngine(Engine):
                     "imputing it fabricates data and most models will treat it as noise."
                 )
             else:
-                fix = (
-                    f"# Impute (median for numeric, mode for categorical)\n"
-                    f"df[{col!r}] = df[{col!r}].fillna(df[{col!r}].median())"
-                )
+                if dtype == "numeric":
+                    fix = (
+                        f"# Median imputation for numeric data\n"
+                        f"df[{col!r}] = df[{col!r}].fillna(df[{col!r}].median())"
+                    )
+                else:
+                    fill = "TBD" if dataset_type == "fixture_schedule" else "Unknown"
+                    fix = (
+                        f"# Preserve categorical meaning while making missingness explicit\n"
+                        f"df[{col!r}] = df[{col!r}].fillna({fill!r})"
+                    )
                 impact = (
                     f"{pct}% of '{col}' is missing; rows get silently dropped or "
                     "naively imputed, biasing the model if missingness is non-random."
@@ -90,6 +148,8 @@ class MissingnessEngine(Engine):
             if period is not None:
                 period_col, periods = period
                 for col in df.columns:
+                    if col in clustered_cols:
+                        continue
                     if col == period_col:
                         continue
                     missing = df[col].isna()
@@ -134,7 +194,7 @@ class MissingnessEngine(Engine):
 
         # Co-missing groups: correlated isna() masks (structural missingness).
         try:
-            cols_with_nulls = [c for c in df.columns if 0 < df[c].isna().mean() < 1]
+            cols_with_nulls = [c for c in df.columns if 0 < df[c].isna().mean() < 1 and c not in clustered_cols]
             if len(cols_with_nulls) >= 2:
                 mask = df[cols_with_nulls].isna().astype(int)
                 corr = mask.corr()

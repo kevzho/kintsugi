@@ -28,6 +28,7 @@ class ScoreResult:
     overall_confidence: str
     overall_confidence_reason: str
     dataset_purpose: str
+    supervised_ml_readiness: str
     severity_counts: dict[str, int]
 
 
@@ -104,7 +105,13 @@ def _readiness_weight(f: Finding) -> float:
     return weight
 
 
-def _dataset_purpose(findings: list[Finding], readiness: float) -> str:
+def _dataset_purpose(findings: list[Finding], readiness: float, dataset_type: str = "unknown", target_provided: bool = True) -> str:
+    if not target_provided:
+        if dataset_type == "fixture_schedule":
+            return "Simulation / forecasting / scheduling analysis"
+        if dataset_type == "historical_archive":
+            return "EDA / visualization / historical analysis"
+        return "Data integrity and exploratory analysis"
     labels = [
         str(f.metrics.get("dataset_purpose"))
         for f in findings
@@ -135,7 +142,23 @@ def _dataset_purpose(findings: list[Finding], readiness: float) -> str:
     return "EDA-only / visualization dataset"
 
 
-def _verdict(integrity: float, readiness: float, overall: float, findings: list[Finding], dataset_purpose: str) -> str:
+def _verdict(
+    integrity: float,
+    readiness: float,
+    overall: float,
+    findings: list[Finding],
+    dataset_purpose: str,
+    dataset_type: str = "unknown",
+    target_provided: bool = True,
+) -> str:
+    if not target_provided:
+        if dataset_type == "fixture_schedule":
+            return "Suitable for simulation, scheduling analysis, and forecasting once outcome labels are added."
+        if dataset_type == "historical_archive":
+            if integrity >= 90:
+                return "Excellent historical dataset, but not suitable for reliable supervised ML because it has too few rows."
+            return "Best suited for EDA, visualization, and historical comparison."
+        return "Supervised ML readiness requires a target column."
     if any(f.code.startswith("TARGET_LEAKAGE") and f.severity == Severity.CRITICAL for f in findings):
         return "Do not train until leakage is resolved"
     if integrity < 60:
@@ -211,7 +234,14 @@ def _confidence(
     return level, reason
 
 
-def score_report(findings: list[Finding], *, n_rows: int = 0, sampled: bool = False) -> ScoreResult:
+def score_report(
+    findings: list[Finding],
+    *,
+    n_rows: int = 0,
+    sampled: bool = False,
+    dataset_type: str = "unknown",
+    target_provided: bool = True,
+) -> ScoreResult:
     integrity_by_engine: dict[str, float] = defaultdict(float)
     readiness_by_engine: dict[str, float] = defaultdict(float)
     severity_counts: dict[str, int] = {s.value: 0 for s in Severity}
@@ -251,28 +281,47 @@ def score_report(findings: list[Finding], *, n_rows: int = 0, sampled: bool = Fa
     ]
     if readiness_caps:
         readiness_score = round(min(readiness_score, min(readiness_caps)), 1)
-    dataset_purpose = _dataset_purpose(findings, readiness_score)
+    if target_provided and any(f.code.startswith("TARGET_LEAKAGE") and f.severity == Severity.CRITICAL for f in findings):
+        readiness_score = min(readiness_score, 40.0)
+    if not target_provided:
+        if dataset_type == "fixture_schedule":
+            readiness_score = min(readiness_score, 60.0)
+        elif dataset_type == "historical_archive":
+            readiness_score = min(readiness_score, 30.0)
+        else:
+            readiness_score = min(readiness_score, 55.0)
+    dataset_purpose = _dataset_purpose(findings, readiness_score, dataset_type, target_provided)
     overall_score = round(0.6 * integrity_score + 0.4 * readiness_score)
 
-    if any(f.code.startswith("TARGET_LEAKAGE") and f.severity == Severity.CRITICAL for f in findings):
+    if not target_provided:
+        if dataset_type == "fixture_schedule":
+            overall_score = round(0.8 * integrity_score + 0.2 * readiness_score)
+            overall_score = min(max(overall_score, 70), 85)
+        elif dataset_type == "historical_archive":
+            overall_score = round(0.7 * integrity_score + 0.3 * readiness_score)
+            overall_score = min(max(overall_score, 60), 75)
+        else:
+            overall_score = round(0.9 * integrity_score + 0.1 * readiness_score)
+
+    if target_provided and any(f.code.startswith("TARGET_LEAKAGE") and f.severity == Severity.CRITICAL for f in findings):
         overall_score = min(overall_score, 40)
     if any(f.code in CORRUPTION_CODES and f.severity in (Severity.HIGH, Severity.CRITICAL) for f in findings):
         overall_score = min(overall_score, 55)
     missing_high = [f for f in findings if f.code == "MISSING_VALUES" and f.severity in (Severity.HIGH, Severity.CRITICAL)]
     if len(missing_high) >= 3:
         overall_score = min(overall_score, 70)
-    if readiness_score < 40:
+    if target_provided and readiness_score < 40:
         overall_score = min(overall_score, 65)
-    if dataset_purpose == "EDA-only / visualization dataset":
+    if target_provided and dataset_purpose == "EDA-only / visualization dataset":
         overall_score = min(overall_score, 70)
-    if dataset_purpose == "Not suitable for supervised ML":
+    if target_provided and dataset_purpose == "Not suitable for supervised ML":
         overall_score = min(overall_score, 60)
     overall_caps = [
         float(f.metrics["overall_cap"])
         for f in findings
         if "overall_cap" in f.metrics
     ]
-    if overall_caps:
+    if target_provided and overall_caps:
         overall_score = min(overall_score, min(overall_caps))
 
     overall_score = float(overall_score)
@@ -292,6 +341,13 @@ def score_report(findings: list[Finding], *, n_rows: int = 0, sampled: bool = Fa
         relevant=readiness_findings,
         all_findings=findings,
     )
+    supervised_ml_readiness = "scored" if target_provided else "N/A"
+    if not target_provided:
+        readiness_reason = (
+            "Supervised ML readiness requires a target column. Since no target was selected, "
+            "this report focuses on data integrity and likely dataset use cases."
+        )
+        readiness_confidence = "low"
     if integrity_confidence == readiness_confidence:
         overall_confidence = integrity_confidence
     elif "low" in (integrity_confidence, readiness_confidence):
@@ -309,7 +365,15 @@ def score_report(findings: list[Finding], *, n_rows: int = 0, sampled: bool = Fa
         readiness_grade=_grade(readiness_score),
         overall_score=overall_score,
         overall_grade=_overall_grade(overall_score),
-        verdict=_verdict(integrity_score, readiness_score, overall_score, findings, dataset_purpose),
+        verdict=_verdict(
+            integrity_score,
+            readiness_score,
+            overall_score,
+            findings,
+            dataset_purpose,
+            dataset_type,
+            target_provided,
+        ),
         integrity_confidence=integrity_confidence,
         integrity_confidence_reason=integrity_reason,
         readiness_confidence=readiness_confidence,
@@ -317,5 +381,6 @@ def score_report(findings: list[Finding], *, n_rows: int = 0, sampled: bool = Fa
         overall_confidence=overall_confidence,
         overall_confidence_reason=overall_reason,
         dataset_purpose=dataset_purpose,
+        supervised_ml_readiness=supervised_ml_readiness,
         severity_counts=severity_counts,
     )

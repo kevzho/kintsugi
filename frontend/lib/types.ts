@@ -57,6 +57,7 @@ export interface Report {
   n_rows_analyzed: number;
   sampled: boolean;
   target_column: string | null;
+  possible_targets: string[];
   health_score: number;
   grade: string;
   integrity_score: number;
@@ -74,6 +75,7 @@ export interface Report {
   overall_confidence_reason: string;
   dataset_type: string;
   dataset_purpose: string;
+  supervised_ml_readiness: string;
   findings: Finding[];
   modeling_warnings: Finding[];
   schema: Schema;

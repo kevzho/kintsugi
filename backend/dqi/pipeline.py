@@ -25,19 +25,16 @@ from .utils.sampling import maybe_sample
 logger = logging.getLogger("dqi")
 
 _TARGET_NAME_RE = re.compile(
-    r"^(target|label|y|class|outcome|churn|churned|converted|default|defaulted|"
-    r"fraud|is_fraud|response|click|clicked)$",
+    r"^(target|label|y|class|outcome|result|churn|churned|converted|default|defaulted|"
+    r"fraud|is_fraud|response|click|clicked|winner|champion)$",
     re.IGNORECASE,
 )
 
 
-def _infer_target(df: pd.DataFrame, schema: dict) -> Optional[str]:
-    """Best-effort target guess when the caller didn't specify one.
-
-    Prefers a low-cardinality column whose name looks like a label. This keeps
-    the zero-config headless path meaningful (e.g. detecting leakage) without
-    forcing the user to name a target.
-    """
+def _possible_targets(df: pd.DataFrame, schema: dict, dataset_type: str = "unknown") -> list[str]:
+    """Suggest likely targets without selecting one for the user."""
+    if dataset_type == "fixture_schedule":
+        return []
     cols = schema.get("columns", {})
 
     def is_label_like(col: str) -> bool:
@@ -46,17 +43,20 @@ def _infer_target(df: pd.DataFrame, schema: dict) -> Optional[str]:
             return False
         dtype = p.get("dtype_inferred")
         n_unique = p.get("n_unique", 0)
+        if n_unique < 2:
+            return False
         return dtype in ("boolean", "categorical") or (dtype == "numeric" and 2 <= n_unique <= 20)
 
-    # 1) name match, scanning right-to-left (targets are usually the last column).
+    suggestions: list[str] = []
     for col in reversed(list(df.columns)):
         if _TARGET_NAME_RE.match(str(col)) and is_label_like(col):
-            return col
-    # 2) otherwise the last label-like column.
+            suggestions.append(str(col))
+    if dataset_type == "historical_archive":
+        return suggestions[:4]
     for col in reversed(list(df.columns)):
-        if is_label_like(col):
-            return col
-    return None
+        if str(col) not in suggestions and is_label_like(col):
+            suggestions.append(str(col))
+    return suggestions[:6]
 
 
 def analyze(df: pd.DataFrame, dataset_name: str, target: Optional[str] = None) -> Report:
@@ -65,27 +65,32 @@ def analyze(df: pd.DataFrame, dataset_name: str, target: Optional[str] = None) -
 
     if target and target not in df.columns:
         target = None  # ignore an invalid target rather than failing
+    target_provided = target is not None
 
     work, sampled = maybe_sample(df)
     schema = infer_schema(work)
-
-    if target is None:
-        target = _infer_target(work, schema)
-        if target:
-            logger.info("auto-detected target column: %s", target)
+    dataset_type = classify_dataset(work, schema, target)
+    possible_targets = _possible_targets(work, schema, dataset_type) if target is None else []
 
     column_roles = classify_columns(work, schema, target)
     for col, role in column_roles.items():
         if col in schema.get("columns", {}):
             schema["columns"][col]["column_role"] = role
-    dataset_type = classify_dataset(work, schema, target)
     schema["dataset_type"] = dataset_type
+    schema["target_provided"] = target_provided
+    schema["possible_targets"] = possible_targets
 
     findings = []
     for engine in ALL_ENGINES:
         findings.extend(engine.safe_run(work, schema, target))
 
-    scores = score_report(findings, n_rows=len(work), sampled=sampled)
+    scores = score_report(
+        findings,
+        n_rows=len(work),
+        sampled=sampled,
+        dataset_type=dataset_type,
+        target_provided=target_provided,
+    )
     fp = fingerprint(schema, [f.code for f in findings], shape=(n_rows, n_cols))
 
     report = Report(
@@ -95,6 +100,7 @@ def analyze(df: pd.DataFrame, dataset_name: str, target: Optional[str] = None) -
         n_rows_analyzed=len(work),
         sampled=sampled,
         target_column=target,
+        possible_targets=possible_targets,
         health_score=scores.overall_score,
         grade=scores.overall_grade,
         integrity_score=scores.integrity_score,
@@ -112,6 +118,7 @@ def analyze(df: pd.DataFrame, dataset_name: str, target: Optional[str] = None) -
         overall_confidence_reason=scores.overall_confidence_reason,
         dataset_type=dataset_type,
         dataset_purpose=scores.dataset_purpose,
+        supervised_ml_readiness=scores.supervised_ml_readiness,
         findings=findings,
         modeling_warnings=[f for f in findings if f.category == "modeling_warning"],
         schema=schema,

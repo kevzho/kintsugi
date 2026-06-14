@@ -68,12 +68,14 @@ function ScoreTile({
   grade,
   confidence,
   reason,
+  unavailable = false,
 }: {
   title: string;
   score: number;
   grade: string;
   confidence: string;
   reason: string;
+  unavailable?: boolean;
 }) {
   return (
     <Card>
@@ -82,11 +84,17 @@ function ScoreTile({
       </CardHeader>
       <CardContent>
         <div className="flex items-end gap-2">
-          <span className="text-4xl font-semibold tabular-nums">{Math.round(score)}</span>
-          <span className="pb-1 text-sm text-muted-foreground">/100</span>
-          <Badge className="mb-1 ml-auto border-border bg-muted text-foreground">{grade}</Badge>
+          {unavailable ? (
+            <span className="text-4xl font-semibold">N/A</span>
+          ) : (
+            <>
+              <span className="text-4xl font-semibold tabular-nums">{Math.round(score)}</span>
+              <span className="pb-1 text-sm text-muted-foreground">/100</span>
+              <Badge className="mb-1 ml-auto border-border bg-muted text-foreground">{grade}</Badge>
+            </>
+          )}
         </div>
-        <p className="mt-3 text-xs capitalize text-muted-foreground">Confidence: {confidence}</p>
+        {!unavailable && <p className="mt-3 text-xs capitalize text-muted-foreground">Confidence: {confidence}</p>}
         <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">{reason}</p>
       </CardContent>
     </Card>
@@ -119,6 +127,7 @@ export function Results({ report }: { report: Report }) {
           grade={report.readiness_grade}
           confidence={report.readiness_confidence}
           reason={report.readiness_confidence_reason}
+          unavailable={report.supervised_ml_readiness === "N/A"}
         />
         <ScoreTile
           title="Overall"
@@ -151,6 +160,16 @@ export function Results({ report }: { report: Report }) {
                 value={report.target_column ?? "—"}
               />
             </div>
+            {report.supervised_ml_readiness === "N/A" && (
+              <Alert variant="info">
+                <Info className="h-4 w-4" />
+                <AlertTitle>Target needed for supervised ML readiness</AlertTitle>
+                <AlertDescription>
+                  Since no target was selected, this report focuses on data integrity and likely dataset use cases.
+                  {report.possible_targets.length > 0 && ` Possible targets: ${report.possible_targets.join(", ")}.`}
+                </AlertDescription>
+              </Alert>
+            )}
             <div className="flex flex-wrap gap-2">
               {SEVERITY_ORDER.map((s) => {
                 const n = counts[s] ?? 0;
