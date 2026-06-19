@@ -240,21 +240,29 @@ Kintsugi is designed to minimize data exposure.
 
 ## Anonymous Usage Tracking
 
-Kintsugi is free to use and does not require accounts. To measure impact, each completed upload or demo analysis records a small anonymous event:
+Kintsugi is free to use and does not require accounts. To measure impact, the frontend records a page-view event and each completed upload or demo analysis records a completed-analysis event:
 
 - Anonymous browser visitor ID and session ID
-- Timestamp, source (`upload` or `demo`), file extension, row count, and column count
+- Page path, timestamp, source (`upload` or `demo`), file extension, row count, and column count
 - Score, grade, severity counts, finding count, and whether AI summaries were available
 - Hashed IP/user-agent metadata for coarse duplicate detection
 
 Raw uploaded rows, cell values, column names, and uploaded filenames are never written to usage events. The backend emits events to logs as `kintsugi_usage_event` and, by default, appends JSONL locally at `.usage/kintsugi_usage_events.jsonl`. On Render or another ephemeral host, use log drains for durable production measurement, or set `KINTSUGI_USAGE_LOG_PATH` to a persistent mounted path if one is available.
 
-Impact metrics:
+The homepage includes a live usage strip that refreshes every 30 seconds:
 
-- Users = count distinct `anonymousUserId` values.
-- Submissions = count `analysis_completed` events.
+- Unique visitors = distinct anonymous visitors with any tracked event.
+- Tool users = distinct anonymous visitors with `analysis_completed`.
+- Analyses run = count of `analysis_completed` events.
+- Conversion = tool users divided by unique visitors.
 - Demo usage = count events where `source` is `demo`.
 - Upload usage = count events where `source` is `upload`.
+
+The same top-line numbers are available as JSON from the backend at:
+
+```text
+/usage/stats
+```
 
 ---
 

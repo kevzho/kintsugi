@@ -22,7 +22,7 @@ load_dotenv()
 
 import dqi
 from dqi import config
-from usage import track_analysis_usage
+from usage import get_usage_stats, track_analysis_usage, track_page_view_usage
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 logger = logging.getLogger("dqi.api")
@@ -125,6 +125,24 @@ def list_demos():
             for d in DEMOS.values()
         ]
     }
+
+
+class PageViewRequest(BaseModel):
+    path: str = "/"
+
+
+@app.post("/usage/page-view")
+def track_page_view(req: PageViewRequest, request: Request):
+    try:
+        track_page_view_usage(request=request, path=req.path)
+    except Exception as usage_exc:
+        logger.warning("usage tracking failed: %s", type(usage_exc).__name__)
+    return {"ok": True}
+
+
+@app.get("/usage/stats")
+def usage_stats():
+    return get_usage_stats()
 
 
 @app.post("/analyze")

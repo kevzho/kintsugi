@@ -8,6 +8,7 @@ import { UploadZone } from "@/components/UploadZone";
 import { LoadingState } from "@/components/LoadingState";
 import { Results } from "@/components/Results";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { UsageStats } from "@/components/UsageStats";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Menubar,
@@ -135,6 +136,8 @@ export default function Home() {
             Rows are analyzed in memory and are not stored.
           </p>
         </section>
+
+        <UsageStats />
 
         {/* Upload */}
         <section id="upload" className="mx-auto max-w-3xl scroll-mt-24">
