@@ -22,6 +22,7 @@ load_dotenv()
 
 import dqi
 from dqi import config
+from usage import track_analysis_usage
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 logger = logging.getLogger("dqi.api")
@@ -138,6 +139,16 @@ async def analyze_upload(
         name = file.filename or "uploaded.csv"
         target_clean = (target or "").strip() or None
         report = dqi.analyze_csv_bytes(raw, name, target_clean)
+        try:
+            track_analysis_usage(
+                request=request,
+                report=report,
+                source="upload",
+                file_name=name,
+                target_provided=target_clean is not None,
+            )
+        except Exception as usage_exc:
+            logger.warning("usage tracking failed: %s", type(usage_exc).__name__)
         return report.to_dict()
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
@@ -168,6 +179,17 @@ def analyze_demo(req: DemoRequest, request: Request):
         target = req.target if req.target is not None else demo["target"]
         target = (target or "").strip() or None
         report = dqi.analyze_csv_bytes(raw, demo["name"], target)
+        try:
+            track_analysis_usage(
+                request=request,
+                report=report,
+                source="demo",
+                file_name=demo["file"],
+                target_provided=target is not None,
+                demo_id=req.demo_id,
+            )
+        except Exception as usage_exc:
+            logger.warning("usage tracking failed: %s", type(usage_exc).__name__)
         return report.to_dict()
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))

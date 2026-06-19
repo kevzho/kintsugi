@@ -209,6 +209,7 @@ Cache entries are keyed by a hash of the prompt so repeated analyses can reuse e
 | Variable              | Where     | Default                    | Purpose                                |
 |-----------------------|-----------|----------------------------|----------------------------------------|
 | `GROQ_API_KEY`        | backend   | unset                      | Enables LLM executive summaries        |
+| `KINTSUGI_USAGE_LOG_PATH` | backend | `.usage/kintsugi_usage_events.jsonl` | Optional JSONL file for anonymous completed-analysis events. Set to `off` to disable file writes. Events are always emitted to backend logs as `kintsugi_usage_event`. |
 | `NEXT_PUBLIC_API_URL` | frontend  | `http://localhost:8000`    | Backend base URL used by the frontend  |
 
 ---
@@ -236,6 +237,24 @@ Kintsugi is designed to minimize data exposure.
 - Raw rows are never stored for summary generation.
 - Only computed diagnostics such as counts, rates, correlations, and finding codes are sent to the LLM.
 - The application remains fully usable with the LLM disabled.
+
+## Anonymous Usage Tracking
+
+Kintsugi is free to use and does not require accounts. To measure impact, each completed upload or demo analysis records a small anonymous event:
+
+- Anonymous browser visitor ID and session ID
+- Timestamp, source (`upload` or `demo`), file extension, row count, and column count
+- Score, grade, severity counts, finding count, and whether AI summaries were available
+- Hashed IP/user-agent metadata for coarse duplicate detection
+
+Raw uploaded rows, cell values, column names, and uploaded filenames are never written to usage events. The backend emits events to logs as `kintsugi_usage_event` and, by default, appends JSONL locally at `.usage/kintsugi_usage_events.jsonl`. On Render or another ephemeral host, use log drains for durable production measurement, or set `KINTSUGI_USAGE_LOG_PATH` to a persistent mounted path if one is available.
+
+Impact metrics:
+
+- Users = count distinct `anonymousUserId` values.
+- Submissions = count `analysis_completed` events.
+- Demo usage = count events where `source` is `demo`.
+- Upload usage = count events where `source` is `upload`.
 
 ---
 
