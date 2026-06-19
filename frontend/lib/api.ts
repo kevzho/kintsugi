@@ -52,7 +52,6 @@ export interface UsageStatsPayload {
   uniqueUsers: number;
   pageViews: number;
   submissions: number;
-  conversionRate: number;
   storage: "jsonl" | "memory";
 }
 

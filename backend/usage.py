@@ -176,13 +176,11 @@ def get_usage_stats() -> dict[str, Any]:
             if anonymous_user_id and anonymous_user_id != "anonymous":
                 users.add(str(anonymous_user_id))
 
-    conversion_rate = round((len(users) / len(visitors)) * 100, 1) if visitors else 0
     return {
         "uniqueVisitors": len(visitors),
         "uniqueUsers": len(users),
         "pageViews": page_views,
         "submissions": submissions,
-        "conversionRate": conversion_rate,
         "lastUpdated": datetime.now(timezone.utc).isoformat(),
         "storage": "jsonl" if _usage_log_path() else "memory",
     }

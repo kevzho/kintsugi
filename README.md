@@ -251,10 +251,8 @@ Raw uploaded rows, cell values, column names, and uploaded filenames are never w
 
 The homepage includes a live usage strip that refreshes every 30 seconds:
 
-- Unique visitors = distinct anonymous visitors with any tracked event.
-- Tool users = distinct anonymous visitors with `analysis_completed`.
-- Analyses run = count of `analysis_completed` events.
-- Conversion = tool users divided by unique visitors.
+- Trusted users = distinct anonymous visitors with `analysis_completed`, rounded up to a multiple of 5 with a minimum of 5.
+- Uses = count of `analysis_completed` events, rounded up to a multiple of 5 with a minimum of 10.
 - Demo usage = count events where `source` is `demo`.
 - Upload usage = count events where `source` is `upload`.
 
